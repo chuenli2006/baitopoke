@@ -161,6 +161,17 @@ header .header-sub { font-size:.78rem; color:var(--light-text); margin-top:2px; 
 .status-toggle button.active-pending { background:var(--orange-soft); border-color:var(--orange); color:var(--orange); }
 .tag-pick-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
 .tag-pick { font-size:.72rem; padding:5px 10px; border-radius:14px; border:1.5px solid var(--border-color); background:var(--bg-color); color:var(--light-text); font-weight:700; cursor:pointer; }
+
+.color-swatch-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+.color-swatch { width:34px; height:34px; border-radius:50%; cursor:pointer; position:relative; border:3px solid transparent; box-shadow:0 2px 6px rgba(0,0,0,0.15); transition:transform .15s, border-color .15s; flex-shrink:0; }
+.color-swatch:active { transform:scale(0.92); }
+.color-swatch.selected { border-color:var(--text-color); transform:scale(1.08); }
+.color-swatch.selected::after { content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:.85rem; font-weight:900; text-shadow:0 1px 2px rgba(0,0,0,0.4); }
+.color-swatch.custom-swatch { background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red); display:flex; align-items:center; justify-content:center; font-size:1rem; }
+.color-swatch.custom-swatch.selected::after { content:""; }
+.color-custom-wrap { display:flex; align-items:center; gap:10px; margin-top:10px; background:var(--soft); border-radius:12px; padding:8px 10px; }
+.color-custom-wrap input[type=color] { width:44px; height:34px; border:none; border-radius:8px; background:none; cursor:pointer; padding:0; }
+.color-custom-hex { font-size:.78rem; font-weight:800; color:var(--primary-deep); letter-spacing:.5px; }
 .tag-pick.sel { background:var(--primary); border-color:var(--primary); color:#fff; }
 
 .rating-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
@@ -405,6 +416,15 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
           <option value="夜職系">夜職系</option><option value="その他">その他</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>テーマカラー</label>
+        <div class="color-swatch-row" id="wpColorSwatchRow"></div>
+        <div class="color-custom-wrap" id="wpColorCustomWrap" style="display:none;">
+          <input type="color" id="wpColorCustomInput" value="#1e88e5" oninput="selectCustomWpColor(this.value)">
+          <span class="color-custom-hex" id="wpColorCustomHex">#1E88E5</span>
+        </div>
+        <input type="hidden" id="wpColorInput" value="#1e88e5">
+      </div>
       <div class="form-row2">
         <div class="form-group"><label>基本時給（円）</label><input type="number" id="wpBaseWage" required min="0"></div>
         <div class="form-group"><label>深夜時給（円）</label><input type="number" id="wpNightWage" min="0" placeholder="任意"></div>
@@ -522,7 +542,8 @@ const STORAGE_KEY = 'baitopoke_data_v1';
 let db = null;
 const TAG_OPTIONS = ['早番','遅番','夜勤','ヘルプ','研修','イベント'];
 const RATING_LABELS = {busy:'忙しさ', relationship:'人間関係', meal:'まかない', comfort:'快適さ', learning:'学び'};
-const WP_COLORS = ['#1e88e5','#26a69a','#ab47bc','#ef6c00','#5c6bc0','#8d6e63','#26c6da','#7cb342'];
+const WP_COLORS = ['#1e88e5','#43a047','#ab47bc','#fb8c00','#5c6bc0','#8d6e63','#26c6da','#9ccc65','#ec407a'];
+const PRESET_WP_COLORS = WP_COLORS;
 
 function defaultData() {
   return {
@@ -561,6 +582,33 @@ function wpColorOf(wpOrId) {
   const idx = wp ? db.workplaces.findIndex(w=>w.id===wp.id) : 0;
   return wpColor(idx<0?0:idx);
 }
+
+/* ============ バイト先カラー選択UI ============ */
+let wpColorMode = 'preset';
+function renderWpColorPicker(selected, mode) {
+  selected = selected || '#1e88e5';
+  wpColorMode = mode || (PRESET_WP_COLORS.some(c=>c.toLowerCase()===selected.toLowerCase()) ? 'preset' : 'custom');
+  const row = document.getElementById('wpColorSwatchRow');
+  row.innerHTML = PRESET_WP_COLORS.map(c=>
+    `<div class="color-swatch ${(wpColorMode==='preset' && selected.toLowerCase()===c.toLowerCase())?'selected':''}" style="background:${c};" onclick="selectWpColor('${c}')" title="${c}"></div>`
+  ).join('') + `<div class="color-swatch custom-swatch ${wpColorMode==='custom'?'selected':''}" onclick="toggleCustomWpColor()" title="カスタムカラー">🎨</div>`;
+  const customWrap = document.getElementById('wpColorCustomWrap');
+  if (wpColorMode==='custom') {
+    customWrap.style.display = 'flex';
+    document.getElementById('wpColorCustomInput').value = selected;
+    document.getElementById('wpColorCustomHex').textContent = selected.toUpperCase();
+  } else {
+    customWrap.style.display = 'none';
+  }
+  document.getElementById('wpColorInput').value = selected;
+}
+function selectWpColor(c) { renderWpColorPicker(c, 'preset'); }
+function toggleCustomWpColor() {
+  if (wpColorMode === 'custom') return;
+  const cur = document.getElementById('wpColorCustomInput').value || '#795548';
+  renderWpColorPicker(cur, 'custom');
+}
+function selectCustomWpColor(c) { renderWpColorPicker(c, 'custom'); }
 
 /* ============ 給与計算 ============ */
 function toMinutes(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
@@ -791,6 +839,7 @@ function openWorkplaceModal(id) {
   document.getElementById('workplaceForm').reset();
   document.getElementById('wpEditId').value = id || '';
   document.getElementById('wpModalTitle').textContent = id ? 'バイト先を編集' : 'バイト先を追加';
+  let initColor = wpColor(db.workplaces.length);
   if (id) {
     const wp = getWorkplace(id);
     document.getElementById('wpName').value = wp.name;
@@ -803,7 +852,9 @@ function openWorkplaceModal(id) {
     document.getElementById('wpPayDay').value = wp.payDay||'';
     document.getElementById('wpShiftDeadline').value = wp.shiftDeadline||'';
     document.getElementById('wpMemo').value = wp.memo||'';
+    initColor = wpColorOf(wp);
   }
+  renderWpColorPicker(initColor);
   document.getElementById('workplaceModal').classList.add('open');
 }
 function saveWorkplace(e) {
@@ -820,17 +871,16 @@ function saveWorkplace(e) {
     closingDay: Number(document.getElementById('wpClosingDay').value)||null,
     payDay: Number(document.getElementById('wpPayDay').value)||null,
     shiftDeadline: Number(document.getElementById('wpShiftDeadline').value)||null,
-    memo: document.getElementById('wpMemo').value.trim()
+    memo: document.getElementById('wpMemo').value.trim(),
+    color: document.getElementById('wpColorInput').value || wpColor(db.workplaces.length)
   };
   if (id) {
     const i = db.workplaces.findIndex(w=>w.id===id);
-    obj.color = db.workplaces[i].color || wpColor(i);
     db.workplaces[i] = obj;
   } else {
-    obj.color = wpColor(db.workplaces.length);
     db.workplaces.push(obj);
   }
-  saveData(); closeModal('workplaceModal'); renderWorkplaces(); showToast('バイト先を保存しました');
+  saveData(); closeModal('workplaceModal'); renderWorkplaces(); renderCalendar(); showToast('バイト先を保存しました');
 }
 function deleteWorkplace(id) {
   if (!confirm('このバイト先と関連する全シフト記録を削除しますか？')) return;
