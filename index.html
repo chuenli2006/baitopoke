@@ -227,6 +227,11 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
 
   <!-- ===== ホーム ===== -->
   <section id="screen-home" class="screen active">
+    <div class="card" id="paydayCardWrap" style="display:none; background:var(--yellow-soft); border:2px solid var(--yellow);">
+      <div class="card-title" style="color:var(--orange);"><span><span class="t-icon">🎉</span> 本日は給料日です！</span></div>
+      <div id="paydayDetailArea" style="font-size:.88rem; font-weight:800; color:var(--text-color);"></div>
+    </div>
+
     <div class="card">
       <div class="card-title">
         <span><span class="t-icon">💰</span> 今月の給料メーター</span>
@@ -236,10 +241,13 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
         <div class="wage-box"><div class="wl">確定給与</div><div class="wv" id="homeConfirmedWage">¥0</div></div>
         <div class="wage-box"><div class="wl">見込み給与</div><div class="wv" id="homeProjectedWage">¥0</div></div>
       </div>
-      <div id="targetWageWrap" style="margin-top:12px; display:none;">
-        <div class="wl-head"><span id="targetWageLabel">目標金額: ¥0</span><span id="targetWagePct">0%</span></div>
+      <div id="targetWageWrap" style="margin-top:14px; display:none;">
+        <div class="wl-head"><span>進捗状況</span><span id="targetWagePct" style="font-weight:900; color:var(--primary);">0%</span></div>
         <div class="wall-bar-bg" style="margin-top:4px;"><div class="wall-bar-fill" id="targetWageBar" style="width:0%;"></div></div>
-        <div id="targetWageDiff" class="wl-sub" style="text-align:right;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <span id="targetWageTag" class="tag-chip" style="background:var(--soft); color:var(--primary-deep); font-size:.75rem; padding:4px 10px; border-radius:12px; font-weight:800;">🎯 目標: ¥0</span>
+          <span id="targetWageDiff" class="wl-sub" style="font-size:.72rem; color:var(--light-text);"></span>
+        </div>
       </div>
       <div class="wage-diff" id="homeWageDiff"></div>
     </div>
@@ -275,10 +283,11 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
       </div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-legend">
-        <span><span class="legend-dot" style="background:var(--green)"></span>確定シフト</span>
-        <span><span class="legend-dot" style="background:var(--orange)"></span>申請中</span>
+        <span><span class="legend-dot" style="background:var(--primary);"></span>確定（塗り＝バイト先カラー）</span>
+        <span><span class="legend-dot" style="background:transparent; border:1.5px solid var(--primary);"></span>申請中（枠のみ）</span>
         <span><span class="legend-dot" style="background:var(--yellow)"></span>給料日</span>
       </div>
+      <div id="wpColorLegend" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; justify-content:center;"></div>
     </div>
   </section>
 
@@ -388,9 +397,12 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
       <div class="form-group"><label>バイト先名</label><input type="text" id="wpName" required placeholder="例：カフェ〇〇"></div>
       <div class="form-group"><label>カテゴリ</label>
         <select id="wpCategory">
+          <option value="事務系">事務系</option><option value="接客業">接客業</option>
           <option value="カフェ">カフェ</option><option value="居酒屋">居酒屋</option><option value="飲食店">飲食店</option>
           <option value="販売・アパレル">販売・アパレル</option><option value="コンビニ">コンビニ</option>
-          <option value="塾・教育">塾・教育</option><option value="イベント・単発">イベント・単発</option><option value="その他">その他</option>
+          <option value="工場">工場</option><option value="運輸系">運輸系</option>
+          <option value="塾・教育">塾・教育</option><option value="イベント・単発">イベント・単発</option>
+          <option value="夜職系">夜職系</option><option value="その他">その他</option>
         </select>
       </div>
       <div class="form-row2">
@@ -516,7 +528,7 @@ function defaultData() {
   return {
     workplaces: [],
     shifts: [],
-    settings: { userName:'', theme:'ocean', pinEnabled:false, pin:'', bioEnabled:false, secretMode:false }
+    settings: { userName:'', theme:'ocean', pinEnabled:false, pin:'', bioEnabled:false, bioCredentialId:null, secretMode:false, targetWage:0 }
   };
 }
 function loadData() {
@@ -543,6 +555,12 @@ function fmtYen(v) {
 }
 function getWorkplace(id) { return db.workplaces.find(w=>w.id===id); }
 function wpColor(idx) { return WP_COLORS[idx % WP_COLORS.length]; }
+function wpColorOf(wpOrId) {
+  const wp = typeof wpOrId === 'string' ? getWorkplace(wpOrId) : wpOrId;
+  if (wp && wp.color) return wp.color;
+  const idx = wp ? db.workplaces.findIndex(w=>w.id===wp.id) : 0;
+  return wpColor(idx<0?0:idx);
+}
 
 /* ============ 給与計算 ============ */
 function toMinutes(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
@@ -598,8 +616,8 @@ function handleFabClick() {
 /* ============ ホーム ============ */
 function renderHome() {
   const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth();
-  const thisMonthShifts = db.shifts.filter(s=>{ const d=new Date(s.date); return d.getFullYear()===y && d.getMonth()===m; });
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  const thisMonthShifts = db.shifts.filter(s=>{ const dt=new Date(s.date); return dt.getFullYear()===y && dt.getMonth()===m; });
   const confirmedPast = thisMonthShifts.filter(s=>s.status==='confirmed' && s.date <= todayStr());
   const allProjected = thisMonthShifts.filter(s=>s.status==='confirmed' || s.status==='pending');
   const confirmedWage = confirmedPast.reduce((a,s)=>a+computeShiftWage(s),0);
@@ -607,6 +625,21 @@ function renderHome() {
   document.getElementById('homeConfirmedWage').textContent = fmtYen(confirmedWage);
   document.getElementById('homeProjectedWage').textContent = fmtYen(projectedWage);
   updateTargetWageUI(projectedWage);
+
+  // 給料日当日のお祝いカード
+  const paydayCard = document.getElementById('paydayCardWrap');
+  const paydayArea = document.getElementById('paydayDetailArea');
+  const todayPaydayWps = db.workplaces.filter(w => Number(w.payDay) === d);
+  if (todayPaydayWps.length > 0) {
+    paydayCard.style.display = 'block';
+    paydayArea.innerHTML = todayPaydayWps.map(wp => {
+      const wpShifts = thisMonthShifts.filter(s => s.workplaceId === wp.id && s.status === 'confirmed');
+      const total = wpShifts.reduce((a, s) => a + computeShiftWage(s), 0);
+      return `<div style="margin-top:4px;">💰 <strong>${escapeHtml(wp.name)}</strong> の給料日です！（支給目安: ${fmtYen(total)}）</div>`;
+    }).join('');
+  } else {
+    paydayCard.style.display = 'none';
+  }
 
   // 先月比
   const lm = new Date(y, m-1, 1);
@@ -628,6 +661,7 @@ function renderHome() {
   } else {
     const s = upcoming[0];
     const wp = getWorkplace(s.workplaceId);
+    const wc = wpColorOf(s.workplaceId);
     const shiftDT = new Date(s.date+'T'+s.start);
     const diffMs = shiftDT - now;
     let countText;
@@ -639,7 +673,7 @@ function renderHome() {
     }
     const dateLabel = s.date===todayStr() ? '本日' : (new Date(s.date)).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
     area.innerHTML = `
-      <div class="next-shift-card">
+      <div class="next-shift-card" style="border-left:5px solid ${wc}; padding-left:10px;">
         <div class="ns-row"><span class="ns-name">${escapeHtml(wp?wp.name:'?')}</span><span class="ns-count">${countText}</span></div>
         <div class="ns-time">${dateLabel} ${s.start}〜${s.end}</div>
         ${wp && wp.phone ? `<a class="ns-call" href="tel:${wp.phone}">📞 店舗に電話する</a>` : ''}
@@ -687,11 +721,11 @@ function updateTargetWageUI(projectedWage) {
   if (target > 0) {
     wrap.style.display = 'block';
     const pct = Math.min(100, (projectedWage / target) * 100);
-    document.getElementById('targetWageLabel').textContent = `目標金額: ${fmtYen(target)}`;
     document.getElementById('targetWagePct').textContent = `${pct.toFixed(1)}%`;
     document.getElementById('targetWageBar').style.width = `${pct}%`;
+    document.getElementById('targetWageTag').textContent = `🎯 目標: ${fmtYen(target)}`;
     const diff = target - projectedWage;
-    document.getElementById('targetWageDiff').textContent = diff > 0 ? `目標まであと ${fmtYen(diff)}` : '🎉 目標達成！';
+    document.getElementById('targetWageDiff').textContent = diff > 0 ? `あと ${fmtYen(diff)}` : '🎉 達成！';
   } else {
     wrap.style.display = 'none';
   }
@@ -721,7 +755,7 @@ function renderWorkplaces() {
     return `
     <div class="wp-card ${isOpen?'open':''}">
       <div class="wp-head" onclick="toggleWpOpen('${wp.id}')">
-        <span class="wp-dot" style="background:${wpColor(idx)}"></span>
+        <span class="wp-dot" style="background:${wpColorOf(wp)}"></span>
         <span class="wp-name">${escapeHtml(wp.name)}</span>
         <span class="wp-cat">${escapeHtml(wp.category)}</span>
         <span class="wp-chev">▾</span>
@@ -788,8 +822,14 @@ function saveWorkplace(e) {
     shiftDeadline: Number(document.getElementById('wpShiftDeadline').value)||null,
     memo: document.getElementById('wpMemo').value.trim()
   };
-  if (id) { const i = db.workplaces.findIndex(w=>w.id===id); db.workplaces[i] = obj; }
-  else db.workplaces.push(obj);
+  if (id) {
+    const i = db.workplaces.findIndex(w=>w.id===id);
+    obj.color = db.workplaces[i].color || wpColor(i);
+    db.workplaces[i] = obj;
+  } else {
+    obj.color = wpColor(db.workplaces.length);
+    db.workplaces.push(obj);
+  }
   saveData(); closeModal('workplaceModal'); renderWorkplaces(); showToast('バイト先を保存しました');
 }
 function deleteWorkplace(id) {
@@ -880,16 +920,19 @@ function renderCalendar() {
     if (c.other) { html += `<div class="cal-cell other-month"><span>${c.d}</span></div>`; return; }
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
     const dayShifts = db.shifts.filter(s=>s.date===dateStr);
-    const hasConfirmed = dayShifts.some(s=>s.status==='confirmed');
-    const hasPending = dayShifts.some(s=>s.status==='pending');
     const isPayday = db.workplaces.some(w=>w.payDay===c.d);
     let dots = '';
-    if (hasConfirmed) dots += `<span class="cal-dot" style="background:var(--green)"></span>`;
-    if (hasPending) dots += `<span class="cal-dot" style="background:var(--orange)"></span>`;
+    dayShifts.slice(0,4).forEach(s=>{
+      const color = wpColorOf(s.workplaceId);
+      if (s.status==='confirmed') dots += `<span class="cal-dot" style="background:${color}"></span>`;
+      else dots += `<span class="cal-dot" style="background:transparent; border:1.5px solid ${color};"></span>`;
+    });
     if (isPayday) dots += `<span class="cal-dot" style="background:var(--yellow)"></span>`;
     html += `<div class="cal-cell ${dateStr===today?'today':''}" onclick="openDayDetail('${dateStr}')"><span>${c.d}</span><div class="cal-dots">${dots}</div></div>`;
   });
   grid.innerHTML = html;
+  document.getElementById('wpColorLegend').innerHTML = db.workplaces.map(w=>
+    `<span style="font-size:.66rem; color:var(--light-text); display:flex; align-items:center; gap:3px;"><span class="legend-dot" style="background:${wpColorOf(w)}"></span>${escapeHtml(w.name)}</span>`).join('');
 }
 let currentDayDetailDate = null;
 function openDayDetail(dateStr) {
@@ -904,8 +947,9 @@ function openDayDetail(dateStr) {
   shifts.forEach(s=>{
     const wp = getWorkplace(s.workplaceId);
     const wage = computeShiftWage(s);
+    const wc = wpColorOf(s.workplaceId);
     html += `
-      <div class="card" style="margin-bottom:8px; box-shadow:none; border:1.5px solid var(--border-color);">
+      <div class="card" style="margin-bottom:8px; box-shadow:none; border:1.5px solid var(--border-color); border-left:5px solid ${wc};">
         <div class="ns-row"><span class="ns-name">${escapeHtml(wp?wp.name:'?')}</span><span class="tag-chip" style="background:${s.status==='confirmed'?'var(--green-soft)':'var(--orange-soft)'}; color:${s.status==='confirmed'?'var(--green)':'var(--orange)'};">${s.status==='confirmed'?'確定':'申請中'}</span></div>
         <div class="ns-time">勤務 ${s.start}〜${s.end}　休憩${s.breakMin||0}分</div>
         <div class="ns-time">${(s.actualWage!==undefined && s.actualWage!==null && s.actualWage!=='')?'給与実績':'概算給与'}：${fmtYen(wage)}</div>
@@ -1100,7 +1144,7 @@ function renderCharts() {
   thisMonthShifts.forEach(s=>{ byWp[s.workplaceId] = (byWp[s.workplaceId]||0) + computeShiftWage(s); });
   const labels = Object.keys(byWp).map(id=>getWorkplace(id)?.name || '?');
   const values = Object.values(byWp);
-  const colors = Object.keys(byWp).map((id)=>{ const idx = db.workplaces.findIndex(w=>w.id===id); return wpColor(idx<0?0:idx); });
+  const colors = Object.keys(byWp).map((id)=> wpColorOf(id));
   const dCtx = document.getElementById('doughnutChart').getContext('2d');
   if (doughnutChartInstance) doughnutChartInstance.destroy();
   doughnutChartInstance = new Chart(dCtx, {
@@ -1114,7 +1158,7 @@ function renderCharts() {
 function renderSettings() {
   document.getElementById('pinToggle').checked = db.settings.pinEnabled;
   document.getElementById('secretToggle').checked = db.settings.secretMode;
-  document.getElementById('bioToggle').checked = db.settings.bioEnabled;
+  document.getElementById('bioToggle').checked = !!(db.settings.bioEnabled && db.settings.bioCredentialId);
   document.getElementById('bioRow').style.display = db.settings.pinEnabled ? 'flex' : 'none';
   document.getElementById('userNameInput').value = db.settings.userName || '';
   ['ocean','midnight','navy'].forEach(t=>document.getElementById('themeSw-'+t).classList.toggle('sel', db.settings.theme===t));
@@ -1130,8 +1174,17 @@ function togglePinLock(v) {
   db.settings.pinEnabled = v; saveData(); renderSettings();
 }
 function toggleBiometric(v) {
-  db.settings.bioEnabled = v; saveData();
-  if (v) showToast('対応端末で生体認証が使えます');
+  if (v) {
+    registerBiometric().then(ok=>{
+      if (!ok) { document.getElementById('bioToggle').checked = false; return; }
+      db.settings.bioEnabled = true; saveData(); renderSettings();
+      showToast('生体認証を登録しました');
+    });
+  } else {
+    db.settings.bioEnabled = false;
+    db.settings.bioCredentialId = null;
+    saveData(); renderSettings();
+  }
 }
 function openPinChangeModal() { document.getElementById('newPinInput').value=''; document.getElementById('newPinConfirm').value=''; document.getElementById('pinChangeModal').classList.add('open'); }
 function confirmSetPin() {
@@ -1227,17 +1280,62 @@ function lockBackspace() { lockInput = lockInput.slice(0,-1); updateLockDots(); 
 function showLockScreen() {
   lockInput=''; updateLockDots();
   document.getElementById('lockScreen').classList.add('open');
-  document.getElementById('lockBioBtn').style.display = db.settings.bioEnabled ? 'block' : 'none';
-  if (db.settings.bioEnabled && window.PublicKeyCredential) setTimeout(tryBiometric, 300);
+  document.getElementById('lockError').textContent='';
+  const bioReady = !!(db.settings.bioEnabled && db.settings.bioCredentialId && window.PublicKeyCredential);
+  document.getElementById('lockBioBtn').style.display = bioReady ? 'block' : 'none';
+  if (bioReady) setTimeout(tryBiometric, 300);
 }
 function hideLockScreen() { document.getElementById('lockScreen').classList.remove('open'); }
-function tryBiometric() {
-  if (!window.PublicKeyCredential) { showToast('この端末は生体認証に対応していません'); return; }
-  // シンプル化：対応端末であれば生体認証プロンプト相当としてロック解除する
-  if (navigator.credentials && navigator.credentials.get) {
-    hideLockScreen();
-  } else {
-    showToast('生体認証を利用できませんでした');
+
+/* --- WebAuthn（生体認証）本人確認 --- */
+function bufToBase64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function base64ToBuf(b64) { const bin = atob(b64); const bytes = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); return bytes.buffer; }
+
+async function registerBiometric() {
+  if (!window.PublicKeyCredential) { showToast('この端末は生体認証に対応していません'); return false; }
+  try {
+    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if (!available) { showToast('Face ID・指紋認証などが利用できる端末ではありません'); return false; }
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userId = crypto.getRandomValues(new Uint8Array(16));
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'バイトポケ' },
+        user: { id: userId, name: 'baitopoke-local-user', displayName: 'バイトポケ' },
+        pubKeyCredParams: [{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
+        authenticatorSelection: { authenticatorAttachment:'platform', userVerification:'required' },
+        timeout: 60000,
+        attestation: 'none'
+      }
+    });
+    if (!cred) return false;
+    db.settings.bioCredentialId = bufToBase64(cred.rawId);
+    saveData();
+    return true;
+  } catch (e) {
+    showToast('生体認証の登録に失敗しました');
+    return false;
+  }
+}
+async function tryBiometric() {
+  if (!window.PublicKeyCredential || !db.settings.bioCredentialId) {
+    showToast('生体認証が設定されていません'); return;
+  }
+  try {
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: base64ToBuf(db.settings.bioCredentialId), type:'public-key' }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    // アサーションが実際に返ってきた（＝本人確認に成功した）場合のみロック解除する
+    if (assertion && assertion.response) { hideLockScreen(); }
+    else { document.getElementById('lockError').textContent = '生体認証に失敗しました'; }
+  } catch (e) {
+    document.getElementById('lockError').textContent = '生体認証がキャンセル、または失敗しました';
   }
 }
 
