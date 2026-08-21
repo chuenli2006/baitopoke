@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -229,10 +228,18 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
   <!-- ===== ホーム ===== -->
   <section id="screen-home" class="screen active">
     <div class="card">
-      <div class="card-title"><span><span class="t-icon">💰</span> 今月の給料メーター</span></div>
+      <div class="card-title">
+        <span><span class="t-icon">💰</span> 今月の給料メーター</span>
+        <button class="mini-btn" onclick="openTargetWageModal()">🎯 目標設定</button>
+      </div>
       <div class="wage-meter">
         <div class="wage-box"><div class="wl">確定給与</div><div class="wv" id="homeConfirmedWage">¥0</div></div>
         <div class="wage-box"><div class="wl">見込み給与</div><div class="wv" id="homeProjectedWage">¥0</div></div>
+      </div>
+      <div id="targetWageWrap" style="margin-top:12px; display:none;">
+        <div class="wl-head"><span id="targetWageLabel">目標金額: ¥0</span><span id="targetWagePct">0%</span></div>
+        <div class="wall-bar-bg" style="margin-top:4px;"><div class="wall-bar-fill" id="targetWageBar" style="width:0%;"></div></div>
+        <div id="targetWageDiff" class="wl-sub" style="text-align:right;"></div>
       </div>
       <div class="wage-diff" id="homeWageDiff"></div>
     </div>
@@ -294,8 +301,13 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
     </div>
 
     <div class="card">
-      <div class="card-title"><span><span class="t-icon">🧾</span> 扶養の壁チェック（年間累計）</span></div>
-      <div id="wallArea"></div>
+      <div class="card-title" onclick="toggleWallAccordion()" style="cursor:pointer;">
+        <span><span class="t-icon">🧾</span> 扶養の壁チェック（年間累計）</span>
+        <span id="wallChev" style="font-size:.85rem; color:var(--light-text); transition:transform .25s; display:inline-block;">▾</span>
+      </div>
+      <div id="wallBody" style="max-height:0; overflow:hidden; transition:max-height .3s ease;">
+        <div id="wallArea" style="padding-top:8px;"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -400,19 +412,33 @@ input:checked + .slider-toggle:before { transform:translateX(20px); }
   </div>
 </div>
 
+<!-- ===== 目標額 設定モーダル ===== -->
+<div class="modal-overlay" id="targetWageModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>今月の目標額を設定</h3><button class="modal-close" onclick="closeModal('targetWageModal')">✕</button></div>
+    <div class="form-group"><label>目標金額（円）</label><input type="number" id="targetWageInput" placeholder="例：80000" min="0"></div>
+    <button class="btn-primary" onclick="saveTargetWage()">保存する</button>
+  </div>
+</div>
+
 <!-- ===== シフト 追加/編集モーダル ===== -->
 <div class="modal-overlay" id="shiftModal">
   <div class="modal-box">
     <div class="modal-head"><h3 id="shiftModalTitle">シフトを追加</h3><button class="modal-close" onclick="closeModal('shiftModal')">✕</button></div>
     <form id="shiftForm" onsubmit="saveShift(event)">
       <input type="hidden" id="shiftEditId">
-      <div class="form-group"><label>バイト先</label><select id="shiftWorkplace" required></select></div>
+      <div class="form-group"><label>バイト先</label><select id="shiftWorkplace" required onchange="renderQuickTimeChips()"></select></div>
+      <div class="form-group" id="quickTimeGroup" style="display:none;">
+        <label>過去の勤務時間から選択</label>
+        <div class="tag-pick-row" id="quickTimeChips"></div>
+      </div>
       <div class="form-group"><label>日付</label><input type="date" id="shiftDate" required></div>
       <div class="form-row2">
         <div class="form-group"><label>開始時刻</label><input type="time" id="shiftStart" required></div>
         <div class="form-group"><label>終了時刻</label><input type="time" id="shiftEnd" required></div>
       </div>
       <div class="form-group"><label>休憩時間（分）</label><input type="number" id="shiftBreak" min="0" value="0"></div>
+      <div class="form-group"><label>給与実績・手取り（任意／未入力時は自動計算）</label><input type="number" id="shiftActualWage" min="0" placeholder="例：5500（実績確定時に入力）"></div>
       <div class="form-group"><label>ステータス</label>
         <div class="status-toggle">
           <button type="button" id="statusConfirmedBtn" class="active-confirmed" onclick="setShiftStatus('confirmed')">確定</button>
@@ -521,6 +547,9 @@ function wpColor(idx) { return WP_COLORS[idx % WP_COLORS.length]; }
 /* ============ 給与計算 ============ */
 function toMinutes(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
 function computeShiftWage(shift) {
+  if (shift.actualWage !== undefined && shift.actualWage !== null && shift.actualWage !== '') {
+    return Number(shift.actualWage);
+  }
   const wp = getWorkplace(shift.workplaceId);
   if (!wp) return 0;
   let startM = toMinutes(shift.start);
@@ -577,6 +606,7 @@ function renderHome() {
   const projectedWage = allProjected.reduce((a,s)=>a+computeShiftWage(s),0);
   document.getElementById('homeConfirmedWage').textContent = fmtYen(confirmedWage);
   document.getElementById('homeProjectedWage').textContent = fmtYen(projectedWage);
+  updateTargetWageUI(projectedWage);
 
   // 先月比
   const lm = new Date(y, m-1, 1);
@@ -637,6 +667,35 @@ function renderHome() {
   } else { remWrap.style.display='none'; }
 }
 function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ============ 今月の目標額 ============ */
+function openTargetWageModal() {
+  document.getElementById('targetWageInput').value = db.settings.targetWage || '';
+  document.getElementById('targetWageModal').classList.add('open');
+}
+function saveTargetWage() {
+  const val = Number(document.getElementById('targetWageInput').value) || 0;
+  db.settings.targetWage = val;
+  saveData();
+  closeModal('targetWageModal');
+  renderHome();
+  showToast('目標額を保存しました');
+}
+function updateTargetWageUI(projectedWage) {
+  const wrap = document.getElementById('targetWageWrap');
+  const target = db.settings.targetWage || 0;
+  if (target > 0) {
+    wrap.style.display = 'block';
+    const pct = Math.min(100, (projectedWage / target) * 100);
+    document.getElementById('targetWageLabel').textContent = `目標金額: ${fmtYen(target)}`;
+    document.getElementById('targetWagePct').textContent = `${pct.toFixed(1)}%`;
+    document.getElementById('targetWageBar').style.width = `${pct}%`;
+    const diff = target - projectedWage;
+    document.getElementById('targetWageDiff').textContent = diff > 0 ? `目標まであと ${fmtYen(diff)}` : '🎉 目標達成！';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
 
 /* ============ バイト先＆勤務管理 ============ */
 let openWpId = null;
@@ -849,7 +908,7 @@ function openDayDetail(dateStr) {
       <div class="card" style="margin-bottom:8px; box-shadow:none; border:1.5px solid var(--border-color);">
         <div class="ns-row"><span class="ns-name">${escapeHtml(wp?wp.name:'?')}</span><span class="tag-chip" style="background:${s.status==='confirmed'?'var(--green-soft)':'var(--orange-soft)'}; color:${s.status==='confirmed'?'var(--green)':'var(--orange)'};">${s.status==='confirmed'?'確定':'申請中'}</span></div>
         <div class="ns-time">勤務 ${s.start}〜${s.end}　休憩${s.breakMin||0}分</div>
-        <div class="ns-time">概算給与：${fmtYen(wage)}</div>
+        <div class="ns-time">${(s.actualWage!==undefined && s.actualWage!==null && s.actualWage!=='')?'給与実績':'概算給与'}：${fmtYen(wage)}</div>
         ${s.memo?`<div class="ns-time">メモ：${escapeHtml(s.memo)}</div>`:''}
         <div class="wp-actions">
           <button class="mini-btn" onclick="closeModal('dayDetailModal'); openShiftModal('${s.id}')">✏️ 編集</button>
@@ -900,20 +959,49 @@ function openShiftModal(id, presetDate) {
     document.getElementById('shiftStart').value = s.start;
     document.getElementById('shiftEnd').value = s.end;
     document.getElementById('shiftBreak').value = s.breakMin||0;
+    document.getElementById('shiftActualWage').value = (s.actualWage!==undefined && s.actualWage!==null) ? s.actualWage : '';
     setShiftStatus(s.status);
     document.getElementById('shiftMemo').value = s.memo||'';
     selectedShiftTags = (s.tags||[]).slice();
   } else if (presetDate) {
     document.getElementById('shiftDate').value = presetDate;
+    document.getElementById('shiftActualWage').value = '';
   } else {
     document.getElementById('shiftDate').value = todayStr();
+    document.getElementById('shiftActualWage').value = '';
   }
   renderTagPickRow();
+  renderQuickTimeChips();
   document.getElementById('shiftModal').classList.add('open');
+}
+function renderQuickTimeChips() {
+  const wpId = document.getElementById('shiftWorkplace').value;
+  const chipsWrap = document.getElementById('quickTimeChips');
+  const group = document.getElementById('quickTimeGroup');
+  if (!wpId) { group.style.display = 'none'; return; }
+  const pastShifts = db.shifts.filter(s => s.workplaceId === wpId);
+  const timeSet = new Set();
+  const timeList = [];
+  pastShifts.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(s => {
+    const key = `${s.start}-${s.end}-${s.breakMin||0}`;
+    if (!timeSet.has(key)) { timeSet.add(key); timeList.push({ start:s.start, end:s.end, breakMin:s.breakMin||0 }); }
+  });
+  if (timeList.length === 0) { group.style.display = 'none'; return; }
+  group.style.display = 'block';
+  chipsWrap.innerHTML = timeList.slice(0, 5).map(t =>
+    `<div class="tag-pick" onclick="applyQuickTime('${t.start}','${t.end}',${t.breakMin})">${t.start}〜${t.end}（${t.breakMin}分休）</div>`
+  ).join('');
+}
+function applyQuickTime(start, end, breakMin) {
+  document.getElementById('shiftStart').value = start;
+  document.getElementById('shiftEnd').value = end;
+  document.getElementById('shiftBreak').value = breakMin;
+  showToast('時間を入力しました');
 }
 function saveShift(e) {
   e.preventDefault();
   const id = document.getElementById('shiftEditId').value;
+  const actualWageVal = document.getElementById('shiftActualWage').value;
   const obj = {
     id: id || uid(),
     workplaceId: document.getElementById('shiftWorkplace').value,
@@ -921,6 +1009,7 @@ function saveShift(e) {
     start: document.getElementById('shiftStart').value,
     end: document.getElementById('shiftEnd').value,
     breakMin: Number(document.getElementById('shiftBreak').value)||0,
+    actualWage: actualWageVal !== '' ? Number(actualWageVal) : null,
     status: document.getElementById('shiftStatus').value,
     tags: selectedShiftTags.slice(),
     memo: document.getElementById('shiftMemo').value.trim()
@@ -936,6 +1025,15 @@ function deleteShift(id) {
 }
 
 /* ============ 分析ダッシュボード ============ */
+let wallOpen = false;
+function toggleWallAccordion() {
+  wallOpen = !wallOpen;
+  const body = document.getElementById('wallBody');
+  const chev = document.getElementById('wallChev');
+  body.style.maxHeight = wallOpen ? '1000px' : '0';
+  chev.style.transform = wallOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
 let currentPeriod = 'month';
 function setPeriod(p) { currentPeriod = p; document.querySelectorAll('.period-tab').forEach(t=>t.classList.toggle('active', t.dataset.p===p)); renderAnalytics(); }
 function getPeriodShifts(p) {
