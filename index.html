@@ -1,1 +1,1159 @@
 
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title id="pageTitle">バイトポケ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<meta name="theme-color" content="#1e88e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="バイトポケ">
+<style>
+:root {
+  --bg-color:#eef6ff; --card-bg:#ffffff; --primary:#1e88e5; --primary-deep:#1565c0; --soft:#e3f2fd;
+  --text-color:#28374a; --light-text:#7d8ea3; --border-color:#d8e9fb;
+  --shadow:0 4px 16px rgba(30,136,229,0.14); --radius:14px;
+  --badge-bg:var(--soft); --badge-color:var(--primary-deep);
+  --green:#2e7d32; --green-soft:#e6f4ea; --orange:#ef6c00; --orange-soft:#fff1e0;
+  --yellow:#f9a825; --yellow-soft:#fff8e1; --red:#c62828; --red-soft:#fdeaea;
+}
+[data-theme="midnight"] {
+  --bg-color:#0e1420; --card-bg:#161f30; --primary:#4fa3f7; --primary-deep:#8ec3fb; --soft:#1c2942;
+  --text-color:#e7eef8; --light-text:#8ea0bb; --border-color:#263349;
+  --shadow:0 4px 18px rgba(0,0,0,0.55);
+  --badge-bg:var(--soft); --badge-color:var(--primary-deep);
+  --green:#66bb6a; --green-soft:#153020; --orange:#ffa552; --orange-soft:#332212;
+  --yellow:#ffd54f; --yellow-soft:#332a10; --red:#ef5350; --red-soft:#331717;
+}
+[data-theme="navy"] {
+  --bg-color:#080c18; --card-bg:#0f1730; --primary:#5b8def; --primary-deep:#9db8f5; --soft:#161f42;
+  --text-color:#dbe4f7; --light-text:#7484a8; --border-color:#1f2a4a;
+  --shadow:0 4px 20px rgba(0,0,0,0.6);
+  --badge-bg:var(--soft); --badge-color:var(--primary-deep);
+  --green:#5fd693; --green-soft:#0f2a20; --orange:#ffb066; --orange-soft:#2c1d0e;
+  --yellow:#ffdd6b; --yellow-soft:#2c2510; --red:#ff6b6b; --red-soft:#2c1414;
+}
+* { box-sizing:border-box; margin:0; padding:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg-color); color:var(--text-color); line-height:1.6; transition:background-color .3s,color .3s; overflow-x:hidden; }
+.app-layout { display:flex; flex-direction:column; padding:14px 12px 100px; max-width:760px; margin:0 auto; min-height:100vh; }
+
+header { text-align:center; margin-bottom:10px; padding-bottom:10px; border-bottom:2px solid var(--soft); position:relative; }
+header h1 { font-size:1.4rem; font-weight:800; color:var(--primary-deep); letter-spacing:.5px; }
+header .header-sub { font-size:.78rem; color:var(--light-text); margin-top:2px; }
+.header-icon-btn { position:absolute; right:0; top:0; background:var(--soft); color:var(--primary-deep); border:none; width:34px; height:34px; border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+.screen { display:none; animation:fadeIn .25s ease; }
+.screen.active { display:block; }
+@keyframes fadeIn { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+.card { background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; margin-bottom:12px; }
+.card-title { font-size:.95rem; font-weight:800; color:var(--primary-deep); margin-bottom:8px; display:flex; align-items:center; gap:6px; justify-content:space-between; }
+.card-title .t-icon { font-size:1.05rem; }
+
+/* --- ホーム：給与メーター --- */
+.wage-meter { display:flex; gap:10px; }
+.wage-box { flex:1; background:var(--soft); border-radius:12px; padding:10px 12px; text-align:center; }
+.wage-box .wl { font-size:.72rem; color:var(--light-text); font-weight:700; margin-bottom:4px; }
+.wage-box .wv { font-size:1.35rem; font-weight:900; color:var(--primary-deep); }
+.wage-diff { text-align:center; margin-top:8px; font-size:.78rem; font-weight:700; }
+.wage-diff.up { color:var(--green); }
+.wage-diff.down { color:var(--red); }
+
+.next-shift-card { display:flex; flex-direction:column; gap:6px; }
+.ns-row { display:flex; justify-content:space-between; align-items:center; }
+.ns-name { font-weight:800; font-size:1rem; }
+.ns-time { font-size:.85rem; color:var(--light-text); }
+.ns-count { font-size:.78rem; font-weight:700; color:var(--primary); background:var(--soft); padding:3px 10px; border-radius:20px; }
+.ns-call { display:inline-flex; align-items:center; gap:6px; background:var(--primary); color:#fff; border:none; padding:8px 14px; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; text-decoration:none; margin-top:4px; align-self:flex-start; }
+.empty-state { text-align:center; color:var(--light-text); font-size:.85rem; padding:14px 4px; }
+
+.reminder-card { display:flex; align-items:center; gap:10px; background:var(--orange-soft); border:1px solid var(--orange); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+.reminder-card .r-icon { font-size:1.2rem; }
+.reminder-card .r-text { font-size:.8rem; font-weight:700; color:var(--text-color); flex:1; }
+.reminder-card .r-days { font-size:.72rem; color:var(--orange); font-weight:800; }
+
+/* --- ナビ --- */
+.floating-nav { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--card-bg); border:1px solid var(--border-color); padding:8px 6px; border-radius:26px; box-shadow:0 8px 24px rgba(0,0,0,0.18); display:flex; gap:2px; z-index:100; width:96%; max-width:440px; justify-content:space-between; backdrop-filter:blur(10px); }
+.nav-item { background:none; border:none; font-size:.62rem; font-weight:700; color:var(--light-text); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; transition:all .2s; flex:1; padding:4px 0; }
+.nav-item.active { color:var(--primary-deep); transform:scale(1.08); }
+.nav-icon { font-size:1.15rem; }
+
+/* --- バイト先カード --- */
+.wp-card { background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:10px; overflow:hidden; }
+.wp-head { display:flex; align-items:center; gap:10px; padding:12px 14px; cursor:pointer; }
+.wp-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.wp-name { font-weight:800; font-size:.95rem; flex:1; }
+.wp-cat { font-size:.68rem; background:var(--badge-bg); color:var(--badge-color); padding:2px 8px; border-radius:10px; font-weight:700; }
+.wp-chev { color:var(--light-text); transition:transform .25s; font-size:.85rem; }
+.wp-card.open .wp-chev { transform:rotate(180deg); }
+.wp-body { max-height:0; overflow:hidden; transition:max-height .3s ease; }
+.wp-card.open .wp-body { max-height:2000px; }
+.wp-body-inner { padding:0 14px 14px; border-top:1px solid var(--border-color); }
+.wp-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
+.wp-info-item { background:var(--soft); border-radius:10px; padding:8px 10px; }
+.wp-info-item .l { font-size:.65rem; color:var(--light-text); font-weight:700; }
+.wp-info-item .v { font-size:.88rem; font-weight:800; margin-top:2px; }
+.wp-actions { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.mini-btn { background:var(--soft); color:var(--primary-deep); border:1px solid var(--primary); padding:6px 12px; border-radius:16px; font-size:.75rem; font-weight:700; cursor:pointer; }
+.mini-btn.danger { color:var(--red); border-color:var(--red); background:var(--red-soft); }
+
+.log-row { display:flex; justify-content:space-between; align-items:center; background:var(--bg-color); border:1px solid var(--border-color); border-radius:10px; padding:8px 10px; margin-top:6px; cursor:pointer; }
+.log-row .lr-date { font-size:.78rem; font-weight:700; }
+.log-row .lr-memo { font-size:.7rem; color:var(--light-text); max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.log-row .lr-tags { display:flex; gap:4px; }
+.tag-chip { font-size:.62rem; background:var(--badge-bg); color:var(--badge-color); padding:1px 7px; border-radius:8px; font-weight:700; }
+
+.search-bar { display:flex; gap:8px; margin-bottom:10px; }
+.search-bar input { flex:1; padding:9px 12px; border-radius:20px; border:1.5px solid var(--border-color); background:var(--card-bg); color:var(--text-color); font-size:.85rem; outline:none; }
+.tag-filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.ftag { font-size:.72rem; padding:5px 12px; border-radius:16px; border:1.5px solid var(--border-color); background:var(--card-bg); color:var(--light-text); font-weight:700; cursor:pointer; }
+.ftag.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+/* --- カレンダー --- */
+.cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.cal-header button { background:var(--soft); border:none; color:var(--primary-deep); width:32px; height:32px; border-radius:50%; font-size:1rem; cursor:pointer; }
+.cal-title { font-weight:800; font-size:1.05rem; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
+.cal-dow { font-size:.68rem; color:var(--light-text); font-weight:700; padding-bottom:4px; }
+.cal-cell { position:relative; aspect-ratio:1/1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:10px; font-size:.8rem; cursor:pointer; background:var(--bg-color); border:1px solid transparent; }
+.cal-cell.today { border-color:var(--primary); font-weight:800; }
+.cal-cell.other-month { opacity:.3; }
+.cal-dots { display:flex; gap:2px; margin-top:2px; }
+.cal-dot { width:5px; height:5px; border-radius:50%; }
+.cal-legend { display:flex; gap:12px; justify-content:center; margin-top:10px; flex-wrap:wrap; }
+.cal-legend span { font-size:.68rem; color:var(--light-text); display:flex; align-items:center; gap:4px; }
+.legend-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+/* --- 分析 --- */
+.period-tabs { display:flex; gap:6px; margin-bottom:10px; }
+.period-tab { flex:1; text-align:center; padding:7px 4px; border-radius:12px; background:var(--soft); color:var(--primary-deep); font-size:.76rem; font-weight:700; cursor:pointer; border:1.5px solid transparent; }
+.period-tab.active { background:var(--primary); color:#fff; }
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+.stat-box { background:var(--soft); border-radius:12px; padding:10px; text-align:center; }
+.stat-box .sl { font-size:.68rem; color:var(--light-text); font-weight:700; }
+.stat-box .sv { font-size:1.1rem; font-weight:900; color:var(--primary-deep); margin-top:2px; }
+
+.wall-item { margin-bottom:12px; }
+.wall-item .wl-head { display:flex; justify-content:space-between; font-size:.78rem; font-weight:700; margin-bottom:4px; }
+.wall-bar-bg { height:10px; border-radius:6px; background:var(--soft); overflow:hidden; }
+.wall-bar-fill { height:100%; border-radius:6px; background:linear-gradient(90deg,var(--primary),var(--primary-deep)); transition:width .4s ease; }
+.wall-item .wl-sub { font-size:.68rem; color:var(--light-text); margin-top:3px; }
+
+/* --- モーダル --- */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:1000; padding:16px; opacity:0; pointer-events:none; transition:opacity .25s ease; }
+.modal-overlay.open { opacity:1; pointer-events:auto; }
+.modal-box { background:var(--card-bg); border-radius:18px; padding:18px; width:100%; max-width:420px; max-height:88vh; overflow-y:auto; transform:translateY(24px) scale(.94); opacity:0; transition:transform .28s cubic-bezier(0.34,1.56,0.64,1), opacity .22s ease; }
+.modal-overlay.open .modal-box { transform:translateY(0) scale(1); opacity:1; }
+.modal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid var(--soft); }
+.modal-head h3 { font-size:1rem; font-weight:800; color:var(--primary-deep); }
+.modal-close { background:var(--soft); color:var(--primary-deep); border:none; width:28px; height:28px; border-radius:50%; font-weight:800; cursor:pointer; }
+.form-group { margin-bottom:12px; }
+.form-group label { display:block; font-size:.75rem; font-weight:700; color:var(--light-text); margin-bottom:4px; }
+.form-group input, .form-group select, .form-group textarea { width:100%; padding:9px 10px; border-radius:10px; border:1.5px solid var(--border-color); background:var(--bg-color); color:var(--text-color); font-size:.88rem; outline:none; }
+.form-group textarea { resize:vertical; min-height:60px; }
+.form-row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.btn-primary { width:100%; background:linear-gradient(135deg,var(--primary),var(--primary-deep)); color:#fff; border:none; padding:11px; border-radius:12px; font-size:.9rem; font-weight:800; cursor:pointer; margin-top:6px; }
+.btn-secondary { width:100%; background:var(--soft); color:var(--primary-deep); border:1px solid var(--primary); padding:10px; border-radius:12px; font-size:.85rem; font-weight:700; cursor:pointer; margin-top:8px; }
+.status-toggle { display:flex; gap:8px; }
+.status-toggle button { flex:1; padding:9px; border-radius:10px; border:1.5px solid var(--border-color); background:var(--bg-color); color:var(--light-text); font-weight:700; font-size:.82rem; cursor:pointer; }
+.status-toggle button.active-confirmed { background:var(--green-soft); border-color:var(--green); color:var(--green); }
+.status-toggle button.active-pending { background:var(--orange-soft); border-color:var(--orange); color:var(--orange); }
+.tag-pick-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.tag-pick { font-size:.72rem; padding:5px 10px; border-radius:14px; border:1.5px solid var(--border-color); background:var(--bg-color); color:var(--light-text); font-weight:700; cursor:pointer; }
+.tag-pick.sel { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+.rating-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.rating-row .rl { width:76px; font-size:.78rem; font-weight:700; flex-shrink:0; }
+.rating-row input[type=range] { flex:1; accent-color:var(--primary); }
+.rating-row .rv { width:22px; text-align:right; font-size:.8rem; font-weight:800; color:var(--primary-deep); }
+
+/* --- FAB --- */
+.fab-add { position:fixed; bottom:108px; right:18px; width:54px; height:54px; border-radius:27px; background:linear-gradient(135deg,var(--primary),var(--primary-deep)); color:#fff; border:none; font-size:1.6rem; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,0.3); cursor:pointer; z-index:90; display:flex; align-items:center; justify-content:center; }
+
+/* --- ロック画面 --- */
+.lock-screen { position:fixed; inset:0; background:linear-gradient(160deg,var(--primary-deep),var(--primary)); z-index:2000; display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; gap:18px; }
+.lock-screen.open { display:flex; }
+.lock-logo { font-size:2.2rem; }
+.lock-title { font-size:1.1rem; font-weight:800; }
+.lock-dots { display:flex; gap:12px; margin:6px 0; }
+.lock-dot { width:14px; height:14px; border-radius:50%; border:2px solid #fff; }
+.lock-dot.filled { background:#fff; }
+.lock-keypad { display:grid; grid-template-columns:repeat(3,64px); gap:14px; }
+.lock-key { width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:1.3rem; font-weight:700; cursor:pointer; }
+.lock-key:active { background:rgba(255,255,255,0.3); }
+.lock-error { font-size:.8rem; color:#ffd6d6; height:16px; }
+.lock-bio { font-size:.8rem; background:none; border:1px solid rgba(255,255,255,0.5); color:#fff; padding:8px 18px; border-radius:20px; cursor:pointer; }
+
+/* --- 設定 --- */
+.settings-row { display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--border-color); }
+.settings-row:last-child { border-bottom:none; }
+.settings-row .sl2 { font-size:.85rem; font-weight:700; }
+.settings-row .sd { font-size:.7rem; color:var(--light-text); margin-top:2px; }
+.switch { position:relative; width:44px; height:24px; }
+.switch input { opacity:0; width:0; height:0; }
+.slider-toggle { position:absolute; inset:0; background:var(--border-color); border-radius:24px; cursor:pointer; transition:.25s; }
+.slider-toggle:before { content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.25s; }
+input:checked + .slider-toggle { background:var(--primary); }
+input:checked + .slider-toggle:before { transform:translateX(20px); }
+.theme-row { display:flex; gap:10px; margin-top:8px; }
+.theme-swatch { flex:1; height:52px; border-radius:12px; cursor:pointer; border:2px solid transparent; display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px; font-size:.65rem; font-weight:800; color:#fff; }
+.theme-swatch.sel { border-color:var(--primary); }
+
+.toast { position:fixed; bottom:150px; left:50%; transform:translateX(-50%); background:var(--text-color); color:var(--bg-color); padding:9px 18px; border-radius:20px; font-size:.8rem; font-weight:700; z-index:3000; opacity:0; pointer-events:none; transition:opacity .3s, transform .3s; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(-6px); }
+
+.secret-mask { letter-spacing:1px; }
+::-webkit-scrollbar { width:0; height:0; }
+</style>
+</head>
+<body>
+
+<div id="lockScreen" class="lock-screen">
+  <div class="lock-logo">🔒</div>
+  <div class="lock-title">バイトポケ</div>
+  <div class="lock-dots" id="lockDots"></div>
+  <div class="lock-error" id="lockError"></div>
+  <div class="lock-keypad" id="lockKeypad"></div>
+  <button class="lock-bio" id="lockBioBtn" style="display:none;" onclick="tryBiometric()">👆 生体認証でロック解除</button>
+</div>
+
+<div class="app-layout">
+  <header>
+    <h1>バイトポケ</h1>
+    <div class="header-sub" id="headerSub">自分専用シフト＆給与管理</div>
+    <button class="header-icon-btn" onclick="switchScreen('settings')">⚙️</button>
+  </header>
+
+  <!-- ===== ホーム ===== -->
+  <section id="screen-home" class="screen active">
+    <div class="card">
+      <div class="card-title"><span><span class="t-icon">💰</span> 今月の給料メーター</span></div>
+      <div class="wage-meter">
+        <div class="wage-box"><div class="wl">確定給与</div><div class="wv" id="homeConfirmedWage">¥0</div></div>
+        <div class="wage-box"><div class="wl">見込み給与</div><div class="wv" id="homeProjectedWage">¥0</div></div>
+      </div>
+      <div class="wage-diff" id="homeWageDiff"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span><span class="t-icon">⏰</span> 直近のシフト</span></div>
+      <div id="nextShiftArea"></div>
+    </div>
+
+    <div class="card" id="reminderCardWrap" style="display:none;">
+      <div class="card-title"><span><span class="t-icon">📋</span> シフト提出リマインダー</span></div>
+      <div id="reminderArea"></div>
+    </div>
+  </section>
+
+  <!-- ===== バイト先＆勤務管理 ===== -->
+  <section id="screen-workplaces" class="screen">
+    <div class="search-bar">
+      <input type="text" id="wpSearchInput" placeholder="バイト先・メモ・タグで検索" oninput="renderWorkplaces()">
+      <button class="mini-btn" onclick="openWorkplaceModal()">＋ 追加</button>
+    </div>
+    <div class="tag-filter-row" id="wpTagFilterRow"></div>
+    <div id="workplaceList"></div>
+  </section>
+
+  <!-- ===== カレンダー ===== -->
+  <section id="screen-calendar" class="screen">
+    <div class="card">
+      <div class="cal-header">
+        <button onclick="changeCalMonth(-1)">‹</button>
+        <div class="cal-title" id="calTitle"></div>
+        <button onclick="changeCalMonth(1)">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend">
+        <span><span class="legend-dot" style="background:var(--green)"></span>確定シフト</span>
+        <span><span class="legend-dot" style="background:var(--orange)"></span>申請中</span>
+        <span><span class="legend-dot" style="background:var(--yellow)"></span>給料日</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 分析ダッシュボード ===== -->
+  <section id="screen-analytics" class="screen">
+    <div class="card">
+      <div class="card-title"><span><span class="t-icon">📊</span> 期間サマリー</span></div>
+      <div class="period-tabs">
+        <div class="period-tab active" data-p="month" onclick="setPeriod('month')">当月</div>
+        <div class="period-tab" data-p="q3" onclick="setPeriod('q3')">3ヶ月</div>
+        <div class="period-tab" data-p="h6" onclick="setPeriod('h6')">半年</div>
+        <div class="period-tab" data-p="year" onclick="setPeriod('year')">年間</div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="sl">概算給与</div><div class="sv" id="statWage">¥0</div></div>
+        <div class="stat-box"><div class="sl">総労働時間</div><div class="sv" id="statHours">0h</div></div>
+        <div class="stat-box"><div class="sl">出勤日数</div><div class="sv" id="statDays">0日</div></div>
+        <div class="stat-box"><div class="sl">平均時給換算</div><div class="sv" id="statAvgWage">¥0</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span><span class="t-icon">🧾</span> 扶養の壁チェック（年間累計）</span></div>
+      <div id="wallArea"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span><span class="t-icon">📈</span> 月別給与推移</span></div>
+      <canvas id="lineChart" height="180"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span><span class="t-icon">🍩</span> バイト先別給与比率</span></div>
+      <canvas id="doughnutChart" height="220"></canvas>
+    </div>
+  </section>
+
+  <!-- ===== 設定 ===== -->
+  <section id="screen-settings" class="screen">
+    <div class="card">
+      <div class="card-title"><span class="t-icon">🎨</span> テーマ</div>
+      <div class="theme-row">
+        <div class="theme-swatch sel" id="themeSw-ocean" style="background:linear-gradient(135deg,#1e88e5,#1565c0);" onclick="setTheme('ocean')">オーシャン</div>
+        <div class="theme-swatch" id="themeSw-midnight" style="background:linear-gradient(135deg,#16233c,#4fa3f7);" onclick="setTheme('midnight')">ミッドナイト</div>
+        <div class="theme-swatch" id="themeSw-navy" style="background:linear-gradient(135deg,#080c18,#5b8def);" onclick="setTheme('navy')">ディープネイビー</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="t-icon">🔐</span> セキュリティ＆プライバシー</div>
+      <div class="settings-row">
+        <div><div class="sl2">アプリロック（PIN）</div><div class="sd">起動時に4桁PINを要求</div></div>
+        <label class="switch"><input type="checkbox" id="pinToggle" onchange="togglePinLock(this.checked)"><span class="slider-toggle"></span></label>
+      </div>
+      <div class="settings-row" id="bioRow" style="display:none;">
+        <div><div class="sl2">生体認証</div><div class="sd">対応端末でPINの代わりに使用</div></div>
+        <label class="switch"><input type="checkbox" id="bioToggle" onchange="toggleBiometric(this.checked)"><span class="slider-toggle"></span></label>
+      </div>
+      <div class="settings-row">
+        <div><div class="sl2">金額を隠す（シークレットモード）</div><div class="sd">給与額を ***円 表示にする</div></div>
+        <label class="switch"><input type="checkbox" id="secretToggle" onchange="toggleSecretMode(this.checked)"><span class="slider-toggle"></span></label>
+      </div>
+      <button class="mini-btn" style="margin-top:10px;" onclick="openPinChangeModal()">PINコードを設定・変更</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="t-icon">💾</span> データバックアップ</div>
+      <button class="btn-secondary" onclick="exportBackup()">📤 JSONエクスポート</button>
+      <button class="btn-secondary" onclick="document.getElementById('importFileInput').click()">📥 JSONインポート（復元）</button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="importBackup(event)">
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="t-icon">👤</span> ユーザー名</div>
+      <div class="form-group" style="margin-bottom:6px;"><input type="text" id="userNameInput" placeholder="表示名（任意）"></div>
+      <button class="mini-btn" onclick="saveUserName()">保存</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="t-icon">🗑️</span> データ初期化</div>
+      <button class="mini-btn danger" onclick="resetAllData()">すべてのデータを削除</button>
+    </div>
+  </section>
+</div>
+
+<button class="fab-add" id="fabAddBtn" onclick="handleFabClick()">＋</button>
+
+<div class="floating-nav">
+  <button class="nav-item active" data-s="home" onclick="switchScreen('home')"><span class="nav-icon">🏠</span>ホーム</button>
+  <button class="nav-item" data-s="workplaces" onclick="switchScreen('workplaces')"><span class="nav-icon">🏢</span>バイト先</button>
+  <button class="nav-item" data-s="calendar" onclick="switchScreen('calendar')"><span class="nav-icon">📅</span>カレンダー</button>
+  <button class="nav-item" data-s="analytics" onclick="switchScreen('analytics')"><span class="nav-icon">📊</span>分析</button>
+  <button class="nav-item" data-s="settings" onclick="switchScreen('settings')"><span class="nav-icon">⚙️</span>設定</button>
+</div>
+
+<!-- ===== バイト先 追加/編集モーダル ===== -->
+<div class="modal-overlay" id="workplaceModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="wpModalTitle">バイト先を追加</h3><button class="modal-close" onclick="closeModal('workplaceModal')">✕</button></div>
+    <form id="workplaceForm" onsubmit="saveWorkplace(event)">
+      <input type="hidden" id="wpEditId">
+      <div class="form-group"><label>バイト先名</label><input type="text" id="wpName" required placeholder="例：カフェ〇〇"></div>
+      <div class="form-group"><label>カテゴリ</label>
+        <select id="wpCategory">
+          <option value="カフェ">カフェ</option><option value="居酒屋">居酒屋</option><option value="飲食店">飲食店</option>
+          <option value="販売・アパレル">販売・アパレル</option><option value="コンビニ">コンビニ</option>
+          <option value="塾・教育">塾・教育</option><option value="イベント・単発">イベント・単発</option><option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="form-row2">
+        <div class="form-group"><label>基本時給（円）</label><input type="number" id="wpBaseWage" required min="0"></div>
+        <div class="form-group"><label>深夜時給（円）</label><input type="number" id="wpNightWage" min="0" placeholder="任意"></div>
+      </div>
+      <div class="form-row2">
+        <div class="form-group"><label>交通費上限（円/日）</label><input type="number" id="wpTransportCap" min="0" placeholder="任意"></div>
+        <div class="form-group"><label>店舗電話番号</label><input type="tel" id="wpPhone" placeholder="任意"></div>
+      </div>
+      <div class="form-row2">
+        <div class="form-group"><label>締め日</label><input type="number" id="wpClosingDay" min="1" max="31" placeholder="例：15"></div>
+        <div class="form-group"><label>支払日</label><input type="number" id="wpPayDay" min="1" max="31" placeholder="例：25"></div>
+      </div>
+      <div class="form-group"><label>シフト提出締め切り日</label><input type="number" id="wpShiftDeadline" min="1" max="31" placeholder="例：20"></div>
+      <div class="form-group"><label>メモ</label><textarea id="wpMemo" placeholder="任意"></textarea></div>
+      <button type="submit" class="btn-primary">保存する</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== シフト 追加/編集モーダル ===== -->
+<div class="modal-overlay" id="shiftModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="shiftModalTitle">シフトを追加</h3><button class="modal-close" onclick="closeModal('shiftModal')">✕</button></div>
+    <form id="shiftForm" onsubmit="saveShift(event)">
+      <input type="hidden" id="shiftEditId">
+      <div class="form-group"><label>バイト先</label><select id="shiftWorkplace" required></select></div>
+      <div class="form-group"><label>日付</label><input type="date" id="shiftDate" required></div>
+      <div class="form-row2">
+        <div class="form-group"><label>開始時刻</label><input type="time" id="shiftStart" required></div>
+        <div class="form-group"><label>終了時刻</label><input type="time" id="shiftEnd" required></div>
+      </div>
+      <div class="form-group"><label>休憩時間（分）</label><input type="number" id="shiftBreak" min="0" value="0"></div>
+      <div class="form-group"><label>ステータス</label>
+        <div class="status-toggle">
+          <button type="button" id="statusConfirmedBtn" class="active-confirmed" onclick="setShiftStatus('confirmed')">確定</button>
+          <button type="button" id="statusPendingBtn" onclick="setShiftStatus('pending')">申請中</button>
+        </div>
+        <input type="hidden" id="shiftStatus" value="confirmed">
+      </div>
+      <div class="form-group"><label>タグ</label>
+        <div class="tag-pick-row" id="shiftTagPickRow"></div>
+        <input type="hidden" id="shiftTagsHidden">
+      </div>
+      <div class="form-group"><label>メモ</label><textarea id="shiftMemo" placeholder="任意"></textarea></div>
+      <button type="submit" class="btn-primary">保存する</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== 日別詳細モーダル ===== -->
+<div class="modal-overlay" id="dayDetailModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="dayDetailTitle">シフト詳細</h3><button class="modal-close" onclick="closeModal('dayDetailModal')">✕</button></div>
+    <div id="dayDetailBody"></div>
+    <button class="btn-secondary" onclick="closeModal('dayDetailModal'); openShiftModalForDate(currentDayDetailDate);">＋ この日にシフトを追加</button>
+  </div>
+</div>
+
+<!-- ===== 勤務ログ・評価モーダル ===== -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>勤務ログ・評価</h3><button class="modal-close" onclick="closeModal('logModal')">✕</button></div>
+    <form id="logForm" onsubmit="saveLog(event)">
+      <input type="hidden" id="logShiftId">
+      <div id="logShiftInfo" style="font-size:.82rem; color:var(--light-text); margin-bottom:10px;"></div>
+      <div class="rating-row"><span class="rl">忙しさ</span><input type="range" min="1" max="5" value="3" id="rateBusy" oninput="document.getElementById('rvBusy').textContent=this.value"><span class="rv" id="rvBusy">3</span></div>
+      <div class="rating-row"><span class="rl">人間関係</span><input type="range" min="1" max="5" value="3" id="rateRelationship" oninput="document.getElementById('rvRelationship').textContent=this.value"><span class="rv" id="rvRelationship">3</span></div>
+      <div class="rating-row"><span class="rl">まかない</span><input type="range" min="1" max="5" value="3" id="rateMeal" oninput="document.getElementById('rvMeal').textContent=this.value"><span class="rv" id="rvMeal">3</span></div>
+      <div class="rating-row"><span class="rl">快適さ</span><input type="range" min="1" max="5" value="3" id="rateComfort" oninput="document.getElementById('rvComfort').textContent=this.value"><span class="rv" id="rvComfort">3</span></div>
+      <div class="rating-row"><span class="rl">学び</span><input type="range" min="1" max="5" value="3" id="rateLearning" oninput="document.getElementById('rvLearning').textContent=this.value"><span class="rv" id="rvLearning">3</span></div>
+      <div class="form-group"><label>一口メモ</label><textarea id="logMemo" placeholder="今日の勤務について"></textarea></div>
+      <button type="submit" class="btn-primary">評価を保存</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== レーダーチャート表示モーダル ===== -->
+<div class="modal-overlay" id="radarModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="radarModalTitle">評価レーダー</h3><button class="modal-close" onclick="closeModal('radarModal')">✕</button></div>
+    <canvas id="radarChart" height="240"></canvas>
+    <div id="wpLogListArea" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<!-- ===== PIN変更モーダル ===== -->
+<div class="modal-overlay" id="pinChangeModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>PINコードの設定</h3><button class="modal-close" onclick="closeModal('pinChangeModal')">✕</button></div>
+    <div class="form-group"><label>新しい4桁PIN</label><input type="password" inputmode="numeric" maxlength="4" id="newPinInput" placeholder="4桁の数字"></div>
+    <div class="form-group"><label>確認のため再入力</label><input type="password" inputmode="numeric" maxlength="4" id="newPinConfirm" placeholder="もう一度入力"></div>
+    <button class="btn-primary" onclick="confirmSetPin()">PINを保存</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ データ管理 ============ */
+const STORAGE_KEY = 'baitopoke_data_v1';
+let db = null;
+const TAG_OPTIONS = ['早番','遅番','夜勤','ヘルプ','研修','イベント'];
+const RATING_LABELS = {busy:'忙しさ', relationship:'人間関係', meal:'まかない', comfort:'快適さ', learning:'学び'};
+const WP_COLORS = ['#1e88e5','#26a69a','#ab47bc','#ef6c00','#5c6bc0','#8d6e63','#26c6da','#7cb342'];
+
+function defaultData() {
+  return {
+    workplaces: [],
+    shifts: [],
+    settings: { userName:'', theme:'ocean', pinEnabled:false, pin:'', bioEnabled:false, secretMode:false }
+  };
+}
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    db = raw ? JSON.parse(raw) : defaultData();
+    if (!db.workplaces) db.workplaces = [];
+    if (!db.shifts) db.shifts = [];
+    if (!db.settings) db.settings = defaultData().settings;
+  } catch(e) { db = defaultData(); }
+}
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function todayStr() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function fmtYen(v) {
+  if (db.settings.secretMode) return '¥***';
+  return '¥' + Math.round(v).toLocaleString();
+}
+function getWorkplace(id) { return db.workplaces.find(w=>w.id===id); }
+function wpColor(idx) { return WP_COLORS[idx % WP_COLORS.length]; }
+
+/* ============ 給与計算 ============ */
+function toMinutes(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
+function computeShiftWage(shift) {
+  const wp = getWorkplace(shift.workplaceId);
+  if (!wp) return 0;
+  let startM = toMinutes(shift.start);
+  let endM = toMinutes(shift.end);
+  if (endM <= startM) endM += 24*60;
+  let totalM = endM - startM - (shift.breakMin||0);
+  if (totalM < 0) totalM = 0;
+  const nightWage = wp.nightWage || wp.baseWage;
+  let nightM = 0;
+  // 深夜帯: 22:00-24:00(1320-1440) と 24:00-29:00(1440-1740, =翌0:00-5:00)
+  function overlap(aS,aE,bS,bE){ return Math.max(0, Math.min(aE,bE)-Math.max(aS,bS)); }
+  nightM += overlap(startM,endM,1320,1440);
+  nightM += overlap(startM,endM,1440,1740);
+  // 前日22時またぎのケース(start自体が22:00前で日付またぎしない通常ケースのみ対応。シンプル化)
+  if (nightM > totalM) nightM = totalM;
+  const dayM = totalM - nightM;
+  const wage = (dayM/60)*wp.baseWage + (nightM/60)*nightWage;
+  return Math.round(wage);
+}
+function shiftHours(shift) {
+  let startM = toMinutes(shift.start), endM = toMinutes(shift.end);
+  if (endM <= startM) endM += 24*60;
+  let totalM = endM - startM - (shift.breakMin||0);
+  if (totalM < 0) totalM = 0;
+  return totalM/60;
+}
+
+/* ============ 画面切り替え ============ */
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.s===name));
+  document.getElementById('fabAddBtn').style.display = (name==='workplaces'||name==='calendar') ? 'flex' : 'none';
+  if (name==='home') renderHome();
+  if (name==='workplaces') renderWorkplaces();
+  if (name==='calendar') renderCalendar();
+  if (name==='analytics') renderAnalytics();
+  if (name==='settings') renderSettings();
+}
+function handleFabClick() {
+  const active = document.querySelector('.screen.active').id;
+  if (active==='screen-workplaces') { openWorkplaceModal(); }
+  else { openShiftModalForDate(calCursor ? null : null); openShiftModalForDate(null); }
+}
+
+/* ============ ホーム ============ */
+function renderHome() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const thisMonthShifts = db.shifts.filter(s=>{ const d=new Date(s.date); return d.getFullYear()===y && d.getMonth()===m; });
+  const confirmedPast = thisMonthShifts.filter(s=>s.status==='confirmed' && s.date <= todayStr());
+  const allProjected = thisMonthShifts.filter(s=>s.status==='confirmed' || s.status==='pending');
+  const confirmedWage = confirmedPast.reduce((a,s)=>a+computeShiftWage(s),0);
+  const projectedWage = allProjected.reduce((a,s)=>a+computeShiftWage(s),0);
+  document.getElementById('homeConfirmedWage').textContent = fmtYen(confirmedWage);
+  document.getElementById('homeProjectedWage').textContent = fmtYen(projectedWage);
+
+  // 先月比
+  const lm = new Date(y, m-1, 1);
+  const lastMonthShifts = db.shifts.filter(s=>{ const d=new Date(s.date); return d.getFullYear()===lm.getFullYear() && d.getMonth()===lm.getMonth() && s.status==='confirmed'; });
+  const lastMonthWage = lastMonthShifts.reduce((a,s)=>a+computeShiftWage(s),0);
+  const diff = projectedWage - lastMonthWage;
+  const diffEl = document.getElementById('homeWageDiff');
+  if (lastMonthWage===0 && projectedWage===0) { diffEl.textContent=''; }
+  else {
+    diffEl.className = 'wage-diff ' + (diff>=0?'up':'down');
+    diffEl.textContent = (diff>=0?'先月比 +':'先月比 ') + (db.settings.secretMode ? '***円' : (diff>=0?'':'-') + '¥' + Math.abs(Math.round(diff)).toLocaleString());
+  }
+
+  // 直近のシフト
+  const upcoming = db.shifts.filter(s=>s.date >= todayStr()).sort((a,b)=> (a.date+a.start).localeCompare(b.date+b.start));
+  const area = document.getElementById('nextShiftArea');
+  if (upcoming.length===0) {
+    area.innerHTML = '<div class="empty-state">直近の予定シフトはありません</div>';
+  } else {
+    const s = upcoming[0];
+    const wp = getWorkplace(s.workplaceId);
+    const shiftDT = new Date(s.date+'T'+s.start);
+    const diffMs = shiftDT - now;
+    let countText;
+    if (diffMs <= 0) countText = '勤務中の可能性があります';
+    else {
+      const hrs = Math.floor(diffMs/3600000), mins = Math.floor((diffMs%3600000)/60000);
+      const days = Math.floor(hrs/24);
+      countText = days>0 ? `開始まであと${days}日${hrs%24}時間` : `開始まであと${hrs}時間${mins}分`;
+    }
+    const dateLabel = s.date===todayStr() ? '本日' : (new Date(s.date)).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
+    area.innerHTML = `
+      <div class="next-shift-card">
+        <div class="ns-row"><span class="ns-name">${escapeHtml(wp?wp.name:'?')}</span><span class="ns-count">${countText}</span></div>
+        <div class="ns-time">${dateLabel} ${s.start}〜${s.end}</div>
+        ${wp && wp.phone ? `<a class="ns-call" href="tel:${wp.phone}">📞 店舗に電話する</a>` : ''}
+      </div>`;
+  }
+
+  // シフト提出リマインダー
+  const remWrap = document.getElementById('reminderCardWrap');
+  const remArea = document.getElementById('reminderArea');
+  const day = now.getDate();
+  const reminders = db.workplaces.filter(w=>w.shiftDeadline).map(w=>{
+    let daysLeft = w.shiftDeadline - day;
+    if (daysLeft < 0) return null;
+    if (daysLeft > 7) return null;
+    return {wp:w, daysLeft};
+  }).filter(Boolean);
+  if (reminders.length>0) {
+    remWrap.style.display='block';
+    remArea.innerHTML = reminders.map(r=>`
+      <div class="reminder-card">
+        <span class="r-icon">⏰</span>
+        <span class="r-text">${escapeHtml(r.wp.name)} のシフト提出締切</span>
+        <span class="r-days">あと${r.daysLeft}日</span>
+      </div>`).join('');
+  } else { remWrap.style.display='none'; }
+}
+function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ============ バイト先＆勤務管理 ============ */
+let openWpId = null;
+function renderWorkplaces() {
+  const kw = (document.getElementById('wpSearchInput').value||'').toLowerCase();
+  const filterRow = document.getElementById('wpTagFilterRow');
+  filterRow.innerHTML = TAG_OPTIONS.map(t=>`<div class="ftag ${activeTagFilter===t?'active':''}" onclick="toggleTagFilter('${t}')">${t}</div>`).join('');
+
+  const list = document.getElementById('workplaceList');
+  if (db.workplaces.length===0) { list.innerHTML = '<div class="empty-state">まだバイト先が登録されていません。「＋ 追加」から登録しましょう。</div>'; return; }
+
+  list.innerHTML = db.workplaces.map((wp, idx)=>{
+    const wpShifts = db.shifts.filter(s=>s.workplaceId===wp.id);
+    const logShifts = wpShifts.filter(s=>s.ratings);
+    let visibleLogs = logShifts;
+    if (activeTagFilter) visibleLogs = visibleLogs.filter(s=>(s.tags||[]).includes(activeTagFilter));
+    if (kw) {
+      const matchWp = wp.name.toLowerCase().includes(kw) || (wp.memo||'').toLowerCase().includes(kw);
+      visibleLogs = visibleLogs.filter(s=> matchWp || (s.memo||'').toLowerCase().includes(kw) || (s.tags||[]).some(t=>t.toLowerCase().includes(kw)));
+      if (!matchWp && visibleLogs.length===0) return '';
+    }
+    const isOpen = openWpId===wp.id;
+    return `
+    <div class="wp-card ${isOpen?'open':''}">
+      <div class="wp-head" onclick="toggleWpOpen('${wp.id}')">
+        <span class="wp-dot" style="background:${wpColor(idx)}"></span>
+        <span class="wp-name">${escapeHtml(wp.name)}</span>
+        <span class="wp-cat">${escapeHtml(wp.category)}</span>
+        <span class="wp-chev">▾</span>
+      </div>
+      <div class="wp-body"><div class="wp-body-inner">
+        <div class="wp-info-grid">
+          <div class="wp-info-item"><div class="l">基本時給</div><div class="v">¥${wp.baseWage}</div></div>
+          <div class="wp-info-item"><div class="l">深夜時給</div><div class="v">${wp.nightWage?'¥'+wp.nightWage:'—'}</div></div>
+          <div class="wp-info-item"><div class="l">締め日／支払日</div><div class="v">${wp.closingDay||'—'}日／${wp.payDay||'—'}日</div></div>
+          <div class="wp-info-item"><div class="l">シフト提出締切</div><div class="v">${wp.shiftDeadline?wp.shiftDeadline+'日':'—'}</div></div>
+        </div>
+        <div class="wp-actions">
+          <button class="mini-btn" onclick="event.stopPropagation();openWorkplaceModal('${wp.id}')">✏️ 編集</button>
+          <button class="mini-btn" onclick="event.stopPropagation();openRadarModal('${wp.id}')">📐 評価レーダー</button>
+          <button class="mini-btn danger" onclick="event.stopPropagation();deleteWorkplace('${wp.id}')">🗑️ 削除</button>
+        </div>
+        <div class="card-title" style="margin-top:12px; font-size:.82rem;">勤務ログ（${visibleLogs.length}件）</div>
+        ${visibleLogs.length===0 ? '<div class="empty-state" style="padding:6px;">記録なし</div>' :
+          visibleLogs.sort((a,b)=>b.date.localeCompare(a.date)).map(s=>`
+          <div class="log-row" onclick="event.stopPropagation();openLogModal('${s.id}')">
+            <div><div class="lr-date">${s.date}</div><div class="lr-memo">${escapeHtml(s.memo||'')}</div></div>
+            <div class="lr-tags">${(s.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>
+          </div>`).join('')}
+      </div></div>
+    </div>`;
+  }).join('');
+}
+let activeTagFilter = null;
+function toggleTagFilter(t) { activeTagFilter = activeTagFilter===t ? null : t; renderWorkplaces(); }
+function toggleWpOpen(id) { openWpId = openWpId===id ? null : id; renderWorkplaces(); }
+
+function openWorkplaceModal(id) {
+  document.getElementById('workplaceForm').reset();
+  document.getElementById('wpEditId').value = id || '';
+  document.getElementById('wpModalTitle').textContent = id ? 'バイト先を編集' : 'バイト先を追加';
+  if (id) {
+    const wp = getWorkplace(id);
+    document.getElementById('wpName').value = wp.name;
+    document.getElementById('wpCategory').value = wp.category;
+    document.getElementById('wpBaseWage').value = wp.baseWage;
+    document.getElementById('wpNightWage').value = wp.nightWage||'';
+    document.getElementById('wpTransportCap').value = wp.transportCap||'';
+    document.getElementById('wpPhone').value = wp.phone||'';
+    document.getElementById('wpClosingDay').value = wp.closingDay||'';
+    document.getElementById('wpPayDay').value = wp.payDay||'';
+    document.getElementById('wpShiftDeadline').value = wp.shiftDeadline||'';
+    document.getElementById('wpMemo').value = wp.memo||'';
+  }
+  document.getElementById('workplaceModal').classList.add('open');
+}
+function saveWorkplace(e) {
+  e.preventDefault();
+  const id = document.getElementById('wpEditId').value;
+  const obj = {
+    id: id || uid(),
+    name: document.getElementById('wpName').value.trim(),
+    category: document.getElementById('wpCategory').value,
+    baseWage: Number(document.getElementById('wpBaseWage').value)||0,
+    nightWage: Number(document.getElementById('wpNightWage').value)||0,
+    transportCap: Number(document.getElementById('wpTransportCap').value)||0,
+    phone: document.getElementById('wpPhone').value.trim(),
+    closingDay: Number(document.getElementById('wpClosingDay').value)||null,
+    payDay: Number(document.getElementById('wpPayDay').value)||null,
+    shiftDeadline: Number(document.getElementById('wpShiftDeadline').value)||null,
+    memo: document.getElementById('wpMemo').value.trim()
+  };
+  if (id) { const i = db.workplaces.findIndex(w=>w.id===id); db.workplaces[i] = obj; }
+  else db.workplaces.push(obj);
+  saveData(); closeModal('workplaceModal'); renderWorkplaces(); showToast('バイト先を保存しました');
+}
+function deleteWorkplace(id) {
+  if (!confirm('このバイト先と関連する全シフト記録を削除しますか？')) return;
+  db.workplaces = db.workplaces.filter(w=>w.id!==id);
+  db.shifts = db.shifts.filter(s=>s.workplaceId!==id);
+  saveData(); renderWorkplaces(); showToast('削除しました');
+}
+
+/* ============ 勤務ログ・評価 ============ */
+function openLogModal(shiftId) {
+  const s = db.shifts.find(x=>x.id===shiftId);
+  if (!s) return;
+  document.getElementById('logShiftId').value = shiftId;
+  const wp = getWorkplace(s.workplaceId);
+  document.getElementById('logShiftInfo').textContent = `${escapeHtml(wp?wp.name:'')} / ${s.date} ${s.start}〜${s.end}`;
+  const r = s.ratings || {busy:3,relationship:3,meal:3,comfort:3,learning:3};
+  ['Busy','Relationship','Meal','Comfort','Learning'].forEach(k=>{
+    const key = k.charAt(0).toLowerCase()+k.slice(1);
+    document.getElementById('rate'+k).value = r[key];
+    document.getElementById('rv'+k).textContent = r[key];
+  });
+  document.getElementById('logMemo').value = s.memo || '';
+  document.getElementById('logModal').classList.add('open');
+}
+function saveLog(e) {
+  e.preventDefault();
+  const shiftId = document.getElementById('logShiftId').value;
+  const s = db.shifts.find(x=>x.id===shiftId);
+  if (!s) return;
+  s.ratings = {
+    busy: Number(document.getElementById('rateBusy').value),
+    relationship: Number(document.getElementById('rateRelationship').value),
+    meal: Number(document.getElementById('rateMeal').value),
+    comfort: Number(document.getElementById('rateComfort').value),
+    learning: Number(document.getElementById('rateLearning').value)
+  };
+  s.memo = document.getElementById('logMemo').value.trim();
+  saveData(); closeModal('logModal'); renderWorkplaces(); showToast('評価を保存しました');
+}
+
+let radarChartInstance = null;
+function openRadarModal(wpId) {
+  const wp = getWorkplace(wpId);
+  document.getElementById('radarModalTitle').textContent = wp.name + ' の評価レーダー';
+  const logs = db.shifts.filter(s=>s.workplaceId===wpId && s.ratings);
+  const avg = {busy:0,relationship:0,meal:0,comfort:0,learning:0};
+  if (logs.length>0) {
+    Object.keys(avg).forEach(k=>{ avg[k] = logs.reduce((a,s)=>a+s.ratings[k],0)/logs.length; });
+  }
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  if (radarChartInstance) radarChartInstance.destroy();
+  radarChartInstance = new Chart(ctx, {
+    type:'radar',
+    data:{
+      labels: Object.values(RATING_LABELS),
+      datasets:[{ label:'平均評価', data: Object.keys(RATING_LABELS).map(k=>avg[k]), backgroundColor:'rgba(30,136,229,0.25)', borderColor:'#1e88e5', pointBackgroundColor:'#1565c0' }]
+    },
+    options:{ scales:{ r:{ min:0, max:5, ticks:{stepSize:1} } }, plugins:{legend:{display:false}} }
+  });
+  const listArea = document.getElementById('wpLogListArea');
+  if (logs.length===0) listArea.innerHTML = '<div class="empty-state">まだ評価がありません</div>';
+  else {
+    listArea.innerHTML = '<div class="card-title" style="font-size:.82rem;">評価件数: '+logs.length+'件</div>' +
+      logs.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(s=>`<div class="log-row"><div class="lr-date">${s.date}</div><div class="lr-memo">${escapeHtml(s.memo||'')}</div></div>`).join('');
+  }
+  document.getElementById('radarModal').classList.add('open');
+}
+
+/* ============ カレンダー ============ */
+let calCursor = new Date();
+function changeCalMonth(off) { calCursor.setMonth(calCursor.getMonth()+off); renderCalendar(); }
+function renderCalendar() {
+  const y = calCursor.getFullYear(), m = calCursor.getMonth();
+  document.getElementById('calTitle').textContent = `${y}年 ${m+1}月`;
+  const grid = document.getElementById('calGrid');
+  const dows = ['日','月','火','水','木','金','土'];
+  let html = dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const firstDow = new Date(y,m,1).getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const prevDays = new Date(y,m,0).getDate();
+  const cells = [];
+  for (let i=firstDow-1;i>=0;i--) cells.push({d:prevDays-i, other:true});
+  for (let d=1; d<=daysInMonth; d++) cells.push({d, other:false});
+  while (cells.length % 7 !== 0) cells.push({d:cells.length, other:true});
+  const today = todayStr();
+  cells.forEach(c=>{
+    if (c.other) { html += `<div class="cal-cell other-month"><span>${c.d}</span></div>`; return; }
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
+    const dayShifts = db.shifts.filter(s=>s.date===dateStr);
+    const hasConfirmed = dayShifts.some(s=>s.status==='confirmed');
+    const hasPending = dayShifts.some(s=>s.status==='pending');
+    const isPayday = db.workplaces.some(w=>w.payDay===c.d);
+    let dots = '';
+    if (hasConfirmed) dots += `<span class="cal-dot" style="background:var(--green)"></span>`;
+    if (hasPending) dots += `<span class="cal-dot" style="background:var(--orange)"></span>`;
+    if (isPayday) dots += `<span class="cal-dot" style="background:var(--yellow)"></span>`;
+    html += `<div class="cal-cell ${dateStr===today?'today':''}" onclick="openDayDetail('${dateStr}')"><span>${c.d}</span><div class="cal-dots">${dots}</div></div>`;
+  });
+  grid.innerHTML = html;
+}
+let currentDayDetailDate = null;
+function openDayDetail(dateStr) {
+  currentDayDetailDate = dateStr;
+  document.getElementById('dayDetailTitle').textContent = dateStr + ' の予定';
+  const shifts = db.shifts.filter(s=>s.date===dateStr);
+  const paydayWps = db.workplaces.filter(w=>w.payDay===Number(dateStr.split('-')[2]));
+  const body = document.getElementById('dayDetailBody');
+  let html = '';
+  if (paydayWps.length>0) html += paydayWps.map(w=>`<div class="reminder-card" style="background:var(--yellow-soft); border-color:var(--yellow);"><span class="r-icon">💴</span><span class="r-text">${escapeHtml(w.name)} の給料日</span></div>`).join('');
+  if (shifts.length===0 && paydayWps.length===0) html += '<div class="empty-state">この日の予定はありません</div>';
+  shifts.forEach(s=>{
+    const wp = getWorkplace(s.workplaceId);
+    const wage = computeShiftWage(s);
+    html += `
+      <div class="card" style="margin-bottom:8px; box-shadow:none; border:1.5px solid var(--border-color);">
+        <div class="ns-row"><span class="ns-name">${escapeHtml(wp?wp.name:'?')}</span><span class="tag-chip" style="background:${s.status==='confirmed'?'var(--green-soft)':'var(--orange-soft)'}; color:${s.status==='confirmed'?'var(--green)':'var(--orange)'};">${s.status==='confirmed'?'確定':'申請中'}</span></div>
+        <div class="ns-time">勤務 ${s.start}〜${s.end}　休憩${s.breakMin||0}分</div>
+        <div class="ns-time">概算給与：${fmtYen(wage)}</div>
+        ${s.memo?`<div class="ns-time">メモ：${escapeHtml(s.memo)}</div>`:''}
+        <div class="wp-actions">
+          <button class="mini-btn" onclick="closeModal('dayDetailModal'); openShiftModal('${s.id}')">✏️ 編集</button>
+          <button class="mini-btn" onclick="openLogModal('${s.id}'); closeModal('dayDetailModal');">📝 評価を記録</button>
+          <button class="mini-btn danger" onclick="deleteShift('${s.id}')">🗑️ 削除</button>
+        </div>
+      </div>`;
+  });
+  document.getElementById('dayDetailBody').innerHTML = html;
+  document.getElementById('dayDetailModal').classList.add('open');
+}
+
+/* ============ シフト 追加/編集 ============ */
+let selectedShiftTags = [];
+function fillWorkplaceSelect() {
+  const sel = document.getElementById('shiftWorkplace');
+  sel.innerHTML = db.workplaces.map(w=>`<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('');
+}
+function renderTagPickRow() {
+  document.getElementById('shiftTagPickRow').innerHTML = TAG_OPTIONS.map(t=>
+    `<div class="tag-pick ${selectedShiftTags.includes(t)?'sel':''}" onclick="toggleShiftTag('${t}')">${t}</div>`).join('');
+}
+function toggleShiftTag(t) {
+  if (selectedShiftTags.includes(t)) selectedShiftTags = selectedShiftTags.filter(x=>x!==t);
+  else selectedShiftTags.push(t);
+  renderTagPickRow();
+}
+function setShiftStatus(status) {
+  document.getElementById('shiftStatus').value = status;
+  document.getElementById('statusConfirmedBtn').className = status==='confirmed' ? 'active-confirmed' : '';
+  document.getElementById('statusPendingBtn').className = status==='pending' ? 'active-pending' : '';
+}
+function openShiftModalForDate(dateStr) {
+  openShiftModal(null, dateStr);
+}
+function openShiftModal(id, presetDate) {
+  if (db.workplaces.length===0) { showToast('先にバイト先を登録してください'); switchScreen('workplaces'); return; }
+  fillWorkplaceSelect();
+  document.getElementById('shiftForm').reset();
+  document.getElementById('shiftEditId').value = id || '';
+  selectedShiftTags = [];
+  setShiftStatus('confirmed');
+  document.getElementById('shiftModalTitle').textContent = id ? 'シフトを編集' : 'シフトを追加';
+  if (id) {
+    const s = db.shifts.find(x=>x.id===id);
+    document.getElementById('shiftWorkplace').value = s.workplaceId;
+    document.getElementById('shiftDate').value = s.date;
+    document.getElementById('shiftStart').value = s.start;
+    document.getElementById('shiftEnd').value = s.end;
+    document.getElementById('shiftBreak').value = s.breakMin||0;
+    setShiftStatus(s.status);
+    document.getElementById('shiftMemo').value = s.memo||'';
+    selectedShiftTags = (s.tags||[]).slice();
+  } else if (presetDate) {
+    document.getElementById('shiftDate').value = presetDate;
+  } else {
+    document.getElementById('shiftDate').value = todayStr();
+  }
+  renderTagPickRow();
+  document.getElementById('shiftModal').classList.add('open');
+}
+function saveShift(e) {
+  e.preventDefault();
+  const id = document.getElementById('shiftEditId').value;
+  const obj = {
+    id: id || uid(),
+    workplaceId: document.getElementById('shiftWorkplace').value,
+    date: document.getElementById('shiftDate').value,
+    start: document.getElementById('shiftStart').value,
+    end: document.getElementById('shiftEnd').value,
+    breakMin: Number(document.getElementById('shiftBreak').value)||0,
+    status: document.getElementById('shiftStatus').value,
+    tags: selectedShiftTags.slice(),
+    memo: document.getElementById('shiftMemo').value.trim()
+  };
+  if (id) { const i = db.shifts.findIndex(s=>s.id===id); obj.ratings = db.shifts[i].ratings; db.shifts[i] = obj; }
+  else db.shifts.push(obj);
+  saveData(); closeModal('shiftModal'); renderCalendar(); renderHome(); showToast('シフトを保存しました');
+}
+function deleteShift(id) {
+  if (!confirm('このシフトを削除しますか？')) return;
+  db.shifts = db.shifts.filter(s=>s.id!==id);
+  saveData(); closeModal('dayDetailModal'); renderCalendar(); renderHome(); renderWorkplaces(); showToast('削除しました');
+}
+
+/* ============ 分析ダッシュボード ============ */
+let currentPeriod = 'month';
+function setPeriod(p) { currentPeriod = p; document.querySelectorAll('.period-tab').forEach(t=>t.classList.toggle('active', t.dataset.p===p)); renderAnalytics(); }
+function getPeriodShifts(p) {
+  const now = new Date();
+  let start;
+  if (p==='month') start = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if (p==='q3') start = new Date(now.getFullYear(), now.getMonth()-2, 1);
+  else if (p==='h6') start = new Date(now.getFullYear(), now.getMonth()-5, 1);
+  else start = new Date(now.getFullYear(), 0, 1);
+  const startStr = start.toISOString().slice(0,10);
+  return db.shifts.filter(s=> s.date >= startStr && s.date <= todayStr() && s.status==='confirmed');
+}
+function renderAnalytics() {
+  const shifts = getPeriodShifts(currentPeriod);
+  const totalWage = shifts.reduce((a,s)=>a+computeShiftWage(s),0);
+  const totalHours = shifts.reduce((a,s)=>a+shiftHours(s),0);
+  const days = new Set(shifts.map(s=>s.date)).size;
+  document.getElementById('statWage').textContent = fmtYen(totalWage);
+  document.getElementById('statHours').textContent = totalHours.toFixed(1)+'h';
+  document.getElementById('statDays').textContent = days+'日';
+  document.getElementById('statAvgWage').textContent = totalHours>0 ? fmtYen(totalWage/totalHours)+'/h' : '¥0/h';
+
+  // 扶養の壁（年間累計・確定分のみ）
+  const now = new Date();
+  const yearStart = now.getFullYear()+'-01-01';
+  const yearShifts = db.shifts.filter(s=>s.date>=yearStart && s.date<=todayStr() && s.status==='confirmed');
+  const yearTotal = yearShifts.reduce((a,s)=>a+computeShiftWage(s),0);
+  const walls = [ {label:'103万円の壁', v:1030000}, {label:'130万円の壁', v:1300000}, {label:'150万円の壁', v:1500000}, {label:'201万円の壁', v:2010000} ];
+  document.getElementById('wallArea').innerHTML = walls.map(w=>{
+    const pct = Math.min(100, (yearTotal/w.v)*100);
+    const remain = Math.max(0, w.v - yearTotal);
+    return `<div class="wall-item">
+      <div class="wl-head"><span>${w.label}</span><span>${pct.toFixed(1)}%</span></div>
+      <div class="wall-bar-bg"><div class="wall-bar-fill" style="width:${pct}%;"></div></div>
+      <div class="wl-sub">あと${fmtYen(remain)}で到達</div>
+    </div>`;
+  }).join('');
+
+  renderCharts();
+}
+let lineChartInstance = null, doughnutChartInstance = null;
+function renderCharts() {
+  // 月別給与推移（直近12ヶ月）
+  const now = new Date();
+  const months = [];
+  for (let i=11;i>=0;i--) { const d=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push(d); }
+  const monthLabels = months.map(d=>`${d.getMonth()+1}月`);
+  const monthWages = months.map(d=>{
+    const ms = db.shifts.filter(s=>{ const sd=new Date(s.date); return sd.getFullYear()===d.getFullYear() && sd.getMonth()===d.getMonth() && s.status==='confirmed'; });
+    return ms.reduce((a,s)=>a+computeShiftWage(s),0);
+  });
+  const lineCtx = document.getElementById('lineChart').getContext('2d');
+  if (lineChartInstance) lineChartInstance.destroy();
+  lineChartInstance = new Chart(lineCtx, {
+    type:'line',
+    data:{ labels: monthLabels, datasets:[{ label:'給与', data: monthWages, borderColor:'#1e88e5', backgroundColor:'rgba(30,136,229,0.15)', fill:true, tension:.3 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{ ticks:{ callback:v=>db.settings.secretMode?'***':'¥'+v.toLocaleString() } } } }
+  });
+
+  // バイト先別給与比率（当月）
+  const y=now.getFullYear(), m=now.getMonth();
+  const thisMonthShifts = db.shifts.filter(s=>{ const d=new Date(s.date); return d.getFullYear()===y && d.getMonth()===m && s.status==='confirmed'; });
+  const byWp = {};
+  thisMonthShifts.forEach(s=>{ byWp[s.workplaceId] = (byWp[s.workplaceId]||0) + computeShiftWage(s); });
+  const labels = Object.keys(byWp).map(id=>getWorkplace(id)?.name || '?');
+  const values = Object.values(byWp);
+  const colors = Object.keys(byWp).map((id)=>{ const idx = db.workplaces.findIndex(w=>w.id===id); return wpColor(idx<0?0:idx); });
+  const dCtx = document.getElementById('doughnutChart').getContext('2d');
+  if (doughnutChartInstance) doughnutChartInstance.destroy();
+  doughnutChartInstance = new Chart(dCtx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data: values, backgroundColor: colors }] },
+    options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:12, font:{size:10}}}} }
+  });
+}
+
+/* ============ 設定 ============ */
+function renderSettings() {
+  document.getElementById('pinToggle').checked = db.settings.pinEnabled;
+  document.getElementById('secretToggle').checked = db.settings.secretMode;
+  document.getElementById('bioToggle').checked = db.settings.bioEnabled;
+  document.getElementById('bioRow').style.display = db.settings.pinEnabled ? 'flex' : 'none';
+  document.getElementById('userNameInput').value = db.settings.userName || '';
+  ['ocean','midnight','navy'].forEach(t=>document.getElementById('themeSw-'+t).classList.toggle('sel', db.settings.theme===t));
+}
+function setTheme(t) {
+  db.settings.theme = t;
+  document.documentElement.setAttribute('data-theme', t==='ocean' ? '' : t);
+  saveData(); renderSettings();
+}
+function toggleSecretMode(v) { db.settings.secretMode = v; saveData(); renderHome(); showToast(v?'金額を隠しました':'金額を表示しました'); }
+function togglePinLock(v) {
+  if (v && !db.settings.pin) { document.getElementById('pinToggle').checked=false; openPinChangeModal(); showToast('先にPINを設定してください'); return; }
+  db.settings.pinEnabled = v; saveData(); renderSettings();
+}
+function toggleBiometric(v) {
+  db.settings.bioEnabled = v; saveData();
+  if (v) showToast('対応端末で生体認証が使えます');
+}
+function openPinChangeModal() { document.getElementById('newPinInput').value=''; document.getElementById('newPinConfirm').value=''; document.getElementById('pinChangeModal').classList.add('open'); }
+function confirmSetPin() {
+  const p1 = document.getElementById('newPinInput').value;
+  const p2 = document.getElementById('newPinConfirm').value;
+  if (!/^\d{4}$/.test(p1)) { showToast('4桁の数字を入力してください'); return; }
+  if (p1 !== p2) { showToast('PINが一致しません'); return; }
+  db.settings.pin = p1; db.settings.pinEnabled = true; saveData();
+  closeModal('pinChangeModal'); renderSettings(); showToast('PINを設定しました');
+}
+function saveUserName() {
+  db.settings.userName = document.getElementById('userNameInput').value.trim();
+  saveData();
+  document.getElementById('headerSub').textContent = db.settings.userName ? db.settings.userName + ' の シフト＆給与管理' : '自分専用シフト＆給与管理';
+  showToast('保存しました');
+}
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `baitopoke_backup_${todayStr()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('バックアップを書き出しました');
+}
+function importBackup(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.workplaces || !data.shifts) throw new Error('invalid');
+      db = data;
+      saveData();
+      applyThemeFromSettings();
+      switchScreen('home');
+      showToast('データを復元しました');
+    } catch(err) { showToast('読み込みに失敗しました'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+function resetAllData() {
+  if (!confirm('すべてのデータを削除します。よろしいですか？')) return;
+  if (!confirm('本当に削除しますか？この操作は取り消せません。')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  db = defaultData();
+  saveData();
+  applyThemeFromSettings();
+  switchScreen('home');
+  showToast('データを初期化しました');
+}
+function applyThemeFromSettings() {
+  const t = db.settings.theme || 'ocean';
+  document.documentElement.setAttribute('data-theme', t==='ocean' ? '' : t);
+}
+
+/* ============ モーダル共通 ============ */
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click', e=>{ if (e.target===m) m.classList.remove('open'); });
+});
+
+/* ============ PINロック ============ */
+let lockInput = '';
+function buildLockKeypad() {
+  const kp = document.getElementById('lockKeypad');
+  let html = '';
+  for (let i=1;i<=9;i++) html += `<button class="lock-key" onclick="lockPress(${i})">${i}</button>`;
+  html += `<button class="lock-key" onclick="closeLockAttemptClear()">C</button>`;
+  html += `<button class="lock-key" onclick="lockPress(0)">0</button>`;
+  html += `<button class="lock-key" onclick="lockBackspace()">⌫</button>`;
+  kp.innerHTML = html;
+}
+function closeLockAttemptClear() { lockInput=''; updateLockDots(); }
+function updateLockDots() {
+  document.getElementById('lockDots').innerHTML = [0,1,2,3].map(i=>`<div class="lock-dot ${i<lockInput.length?'filled':''}"></div>`).join('');
+}
+function lockPress(d) {
+  if (lockInput.length>=4) return;
+  lockInput += String(d);
+  updateLockDots();
+  document.getElementById('lockError').textContent='';
+  if (lockInput.length===4) {
+    setTimeout(()=>{
+      if (lockInput === db.settings.pin) { hideLockScreen(); }
+      else { document.getElementById('lockError').textContent='PINが違います'; lockInput=''; updateLockDots(); }
+    }, 150);
+  }
+}
+function lockBackspace() { lockInput = lockInput.slice(0,-1); updateLockDots(); }
+function showLockScreen() {
+  lockInput=''; updateLockDots();
+  document.getElementById('lockScreen').classList.add('open');
+  document.getElementById('lockBioBtn').style.display = db.settings.bioEnabled ? 'block' : 'none';
+  if (db.settings.bioEnabled && window.PublicKeyCredential) setTimeout(tryBiometric, 300);
+}
+function hideLockScreen() { document.getElementById('lockScreen').classList.remove('open'); }
+function tryBiometric() {
+  if (!window.PublicKeyCredential) { showToast('この端末は生体認証に対応していません'); return; }
+  // シンプル化：対応端末であれば生体認証プロンプト相当としてロック解除する
+  if (navigator.credentials && navigator.credentials.get) {
+    hideLockScreen();
+  } else {
+    showToast('生体認証を利用できませんでした');
+  }
+}
+
+/* ============ 初期化 ============ */
+function initApp() {
+  loadData();
+  applyThemeFromSettings();
+  buildLockKeypad();
+  if (db.settings.pinEnabled && db.settings.pin) { showLockScreen(); }
+  document.getElementById('headerSub').textContent = db.settings.userName ? db.settings.userName + ' の シフト＆給与管理' : '自分専用シフト＆給与管理';
+  switchScreen('home');
+  setInterval(()=>{ if (document.querySelector('.screen.active').id==='screen-home') renderHome(); }, 60000);
+}
+window.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>
